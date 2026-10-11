@@ -155,7 +155,7 @@
       return `<button type="button" class="crow${t.replied ? ' rep' : ''}${t.id === SEL ? ' sel' : ''}" role="listitem" data-id="${esc(t.id)}" aria-current="${t.id === SEL ? 'true' : 'false'}" aria-label="Open the thread for ${esc(h.addr)}">` +
         `<span class="cav" data-ch="${ch}" title="${esc(LABEL[ch === 'reply' ? 'reply' : ch] || (ch === 'sched' ? 'Scheduled text' : ''))}"><span class="ic">${esc(initials(h.addr))}${ICON[ch] || ICON.note}</span></span>` +
         `<span class="cb"><span class="ct"><b class="cad">${esc(h.addr)}</b><time datetime="${esc(last ? last.at : '')}">${esc(when)}</time></span>` +
-        `<span class="cwho">${esc([h.owner, h.city].filter(Boolean).join(' · ') || 'Owner not loaded')}</span>` +
+        `<span class="cwho">${esc([h.owner, h.city].filter(Boolean).join(' · ') || 'Owner name not available')}</span>` +
         `<span class="clast">${t.replied ? '<i class="cdot" title="Needs an answer"></i>' : ''}${lastWords(last)}</span>` +
         `<span class="cmeta"><span class="ccad ${cl.k}">${esc(cl.t)}</span><span class="cstg">${esc(t.stage === 'lost' ? 'Not now' : RC.stageName(t.stage))}</span></span></span></button>`;
     }).join('');
@@ -273,7 +273,7 @@
       `<div><span>Roof</span>${h.year ? `<b>${esc(String(h.year))}</b><small>${esc(permit.replace('on file', '').trim())}</small>` : `<b class="sm">${esc(roof)}</b><small>${esc(permit)}</small>`}</div>` +
       `<div><span>Pitch</span><b${/^\d+\/\d+$/.test(String(pitch)) ? '' : ' class="sm"'}>${esc(String(pitch))}</b><small>${h.pitch ? 'LiDAR' : ''}</small></div></div>` +
       `<div class="cfg">` +
-      `<div><span>Owner</span><b>${OWNDATA ? (h.owner ? esc(h.owner) + (h.homestead ? ', homestead' : '') : RC.OWNER_NONE) : 'Owner not loaded'}</b></div>` +
+      `<div><span>Owner</span><b>${OWNDATA ? (h.owner ? esc(h.owner) + (h.homestead ? ', homestead' : '') : RC.OWNER_NONE) : 'Owner name not available'}</b></div>` +
       (RC.tracedRows ? RC.tracedRows(h.addr, h.zip) : '') +
       `<div><span>Squares</span><b>${esc(String(sq))}${h.sq != null ? ', from the outline' : ''}</b></div>` +
       `<div><span>Texts</span><b>${h.past ? 'Past customer' : h.optin ? 'Opted in' : RC.optedOut(id) ? 'Opted out' : 'Not yet opted in'}</b></div></div>` +

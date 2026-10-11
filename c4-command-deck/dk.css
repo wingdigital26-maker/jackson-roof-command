@@ -228,8 +228,8 @@ svg{display:block}
 .sheet .far .stop.wait:not(.now):not(.reached){width:18px;height:18px;font-size:9px;border-width:1.2px}
 .sheet .far .stop.reached:not(.now){width:26px;height:26px;font-size:11px}
 .mleg i.dot{width:9px;height:9px;border-radius:50%}
-.mleg i.dot.hit{background:rgba(13,108,153,.65)}
-.mleg i.dot.all{background:rgba(108,118,140,.45)}
+.mleg i.dot.hit{background:rgba(98,108,128,.78)}
+.mleg i.dot.all{background:rgba(128,136,152,.42)}
 .mnext button.go{border:0;cursor:pointer;font:inherit;font-weight:700}
 .mnext button.go:hover{filter:brightness(1.08)}
 .stop.reached[data-ch="text"]:not(.now){background:#0D6C99}

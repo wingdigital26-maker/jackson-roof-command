@@ -57,7 +57,7 @@ svg{display:block}
 .acts .sq{width:46px;padding:0;justify-content:center}
 
 /* stage bar */
-.steps{display:grid;grid-template-columns:repeat(5,1fr);margin:20px 28px 0;background:#fff;border-radius:var(--r2);box-shadow:var(--shadow-soft);overflow:hidden}
+.steps{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));margin:20px 28px 0;background:#fff;border-radius:var(--r2);box-shadow:var(--shadow-soft);overflow:hidden}
 .st{padding:13px 18px 15px;position:relative;display:flex;gap:11px;align-items:center}
 .st + .st{border-left:1px solid var(--hair-2)}
 .st::before{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:transparent}
@@ -648,3 +648,13 @@ body.pdrag .pcols{scroll-snap-type:none}   /* edge scrolling while dragging a ca
   /* the toast uses the width it needs (it no longer squeezes into half the screen) and keeps left of Nimbus's corner */
   .toast{left:12px;transform:none;width:max-content;max-width:calc(100vw - 104px)}
 }
+
+/* no outline on file (home.js showNone): no 3D slab, the parcel from above with a pin on the home */
+.stage.none #gl,.stage.none .dock,.stage.none .labels,.stage.none .legend{display:none!important}
+.nooutline{position:absolute;inset:0;background:#E9ECF2;overflow:hidden}
+.nooutline img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.nooutline::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.92) 0,rgba(255,255,255,.55) 120px,rgba(255,255,255,0) 210px);pointer-events:none}
+.nooutline .pin{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:var(--ink,#0B1020);border:3px solid #fff;box-shadow:0 0 0 6px rgba(11,16,32,.18),0 4px 12px rgba(0,0,0,.35);z-index:1}
+.nooutline .credit{position:absolute;right:10px;bottom:8px;z-index:1;font-size:10.5px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.7)}
+.nooutline.noimg::after{display:none}
+.stage.none .title{z-index:2}

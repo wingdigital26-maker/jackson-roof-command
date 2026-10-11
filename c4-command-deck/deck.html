@@ -1262,11 +1262,13 @@ function buildBulk(){
 }
 function bulkLayers(){
   if (!overlay || !window.deck || !BULK.all) return [];
-  const acc = hexRGB((getComputedStyle(document.documentElement).getPropertyValue('--accent')||'#0D6C99').trim() || '#0D6C99');
+  // Jack 10-10: the homes stay neutral so the only strong blue on this map is the message lines, their landing rings
+  // and the numbered pins. Every home = a faint light-slate dot; a storm-hit home = the same dot a touch darker and a
+  // little bigger (no accent fill, no area tint). The legend dots in dk.css (.mleg i.dot) carry the same two greys.
   const L = [ new window.deck.ScatterplotLayer({ id:'homes-all', beforeId:labelId, data:{ length:BULK.nAll, attributes:{ getPosition:{ value:BULK.all, size:2 } } },
-    radiusUnits:'meters', getRadius:7, radiusMinPixels:phone?.7:1, radiusMaxPixels:2.4, getFillColor:[108,118,140,phone?48:66], stroked:false, pickable:false, antialiasing:false }) ];
+    radiusUnits:'meters', getRadius:7, radiusMinPixels:phone?.7:1, radiusMaxPixels:2.2, getFillColor:[128,136,152,phone?40:52], stroked:false, pickable:false, antialiasing:false }) ];
   if (BULK.hit && BULK.nHit) L.push(new window.deck.ScatterplotLayer({ id:'homes-hit', beforeId:labelId, data:{ length:BULK.nHit, attributes:{ getPosition:{ value:BULK.hit, size:2 } } },
-    radiusUnits:'meters', getRadius:11, radiusMinPixels:phone?1.3:1.8, radiusMaxPixels:4.5, getFillColor:[...acc,phone?110:135], stroked:false, pickable:false, antialiasing:true }));
+    radiusUnits:'meters', getRadius:9, radiusMinPixels:phone?1.1:1.5, radiusMaxPixels:3.4, getFillColor:[98,108,128,phone?78:92], stroked:false, pickable:false, antialiasing:true }));
   return L;
 }
 function fpLayers(){

@@ -66,6 +66,7 @@
     window.HOME_READY = gi != null && window.STM ? STM.facts(gi, rec.lon, rec.lat).then(f => {
       if (me !== rawId) return;
       if (f.addr) { rec.addr = f.addr; rec.place = f.place; }
+      if ((rec.lon == null || rec.lat == null) && isFinite(f.lon) && isFinite(f.lat)) { rec.lon = f.lon; rec.lat = f.lat; }   // opened cold by id
       Object.assign(rec, { subdivision: f.subdivision || rec.subdivision, sqft: f.sqft || rec.sqft, year: f.year, permit: f.permit, roofAge: f.roofAge, pitchNote: f.pitch.note, county: f.county || rec.county });
       place = rec.place || place; if (window.renderRecord) window.renderRecord();
     }).catch(() => {}) : Promise.resolve();
@@ -285,6 +286,7 @@
       const mv = hist.find(x => x.kind === 'stage' && /^Moved to (Called|Contacted)/.test(x.what)); return RC.stage(id) !== 'new' && mv ? 'Moved here ' + fmtDay(mv.at) : 'Not yet'; }
     if (k === 'inspection') { const b = RC.booking(id); return b ? RC.when(b) : RC.stage(id) === 'inspection' ? 'Time not set' : 'Not yet'; }
     if (k === 'proposal') return last(/proposal|Moved to Proposal|Inspection done/i) || 'After inspection';
+    if (k === 'handoff') { const d = last(/^Moved to Sent to|handoff|handed/i); return d ? 'Handed over ' + d : 'Handed to ' + (REP || 'the owner'); }
     return 'Signed contract';
   }
   function renderSteps() {
@@ -303,11 +305,11 @@
   // ---------- header sub line, contact ----------
   function renderSub() {
     const st = RC.stage(id, dflt);
-    $('#rsub').innerHTML = `<span class="stagepill">${esc(RC.stageName(st))}</span>${archivedOf(id) ? '<span class="stagepill nn" title="Parked in Not now on the pipeline board. Restore it there, or move it on the stage bar.">Not now</span>' : ''}<span>${esc(place)}</span>${OWNDATA && rec.subdivision ? `<span>${esc(rec.subdivision)}</span>` : ''}<span>${OWNDATA ? (rec.owner ? esc(rec.owner) : RC.OWNER_NONE) : rec.person ? esc(rec.person) + ' <i class="smp">sample</i>' : 'Owner not loaded'}</span>`;
+    $('#rsub').innerHTML = `<span class="stagepill">${esc(RC.stageName(st))}</span>${archivedOf(id) ? '<span class="stagepill nn" title="Parked in Not now on the pipeline board. Restore it there, or move it on the stage bar.">Not now</span>' : ''}<span>${esc(place)}</span>${OWNDATA && rec.subdivision ? `<span>${esc(rec.subdivision)}</span>` : ''}<span>${OWNDATA ? (rec.owner ? esc(rec.owner) : RC.OWNER_NONE) : rec.person ? esc(rec.person) + ' <i class="smp">sample</i>' : 'Owner name not available'}</span>`;
     const c = RC.canText(id, tel || null);
     document.querySelectorAll('.callwhy').forEach(w => { w.hidden = c.ok; w.textContent = c.reason; });
     document.querySelectorAll('.bookLbl').forEach(l => { l.textContent = RC.booking(id) ? 'Reschedule' : 'Book'; });
-    const kv = [['Owner', OWNDATA ? (rec.owner ? esc(rec.owner) + (rec.homestead ? ', homestead' : '') + ' (county roll)' : RC.OWNER_NONE) : rec.person ? esc(rec.person) + ' (sample)' : 'Owner not loaded'], ['Phone', rec.phone ? esc(rec.phone) + ' (sample)' : 'Not on file'],
+    const kv = [['Owner', OWNDATA ? (rec.owner ? esc(rec.owner) + (rec.homestead ? ', homestead' : '') + ' (county roll)' : RC.OWNER_NONE) : rec.person ? esc(rec.person) + ' (sample)' : 'Owner name not available'], ['Phone', rec.phone ? esc(rec.phone) + ' (sample)' : 'Not on file'],
       ['Texts', optin ? (rec.customer ? 'Past customer' : 'Opted in') : 'Not yet opted in'], ['Texting hours', esc(RC.textWindow().label)],
       ['Hail here', hail != null ? hail.toFixed(2) + ' in, ' + esc(window.HOME.hailDate) + ' (radar)' : 'Not on file'], ['Radar max, ' + sday(STORM.iso), STORM.max.toFixed(2) + ' in'],
       ['Roof', esc(rec.roofAge || (rec.year ? 'Built ' + rec.year : 'Checking the county record'))]].concat(LIC ? [['License on texts', LIC]] : []);

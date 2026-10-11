@@ -413,9 +413,31 @@ function build() {
   }
   activeIdx = -1; hoverIdx = -1; explodeTarget = 0; explodeT = 0; frames = 0; stage.classList.remove('focused');
   bExplode.classList.remove('on'); bExplode.textContent = 'Explode';
-  document.getElementById('titleH').textContent = NONE ? 'No outline on file for this home' : `${M.squares} squares, ${SPEC_INFO ? SPEC_INFO.style : 'hip roof'}, ${pitchGap() ? 'pitch not measured' : M.pitch}`;
-  document.getElementById('titleP').textContent = NONE ? 'No building outline on file for this home, so there is no roof to draw or measure.'
+  document.getElementById('titleH').textContent = NONE ? 'Outline not on file yet' : `${M.squares} squares, ${SPEC_INFO ? SPEC_INFO.style : 'hip roof'}, ${pitchGap() ? 'pitch not measured' : M.pitch}`;
+  document.getElementById('titleP').textContent = NONE ? 'The public building maps have no outline for this home yet, so there are no squares to show. This is the parcel from above.'
     : `${SPEC.label}${DEFAULT_HOUSE ? " (stop 1 on today's route)" : ''}. Drag to turn it, click a plane to measure it.`;
+  showNone();
+}
+// no outline on file: no 3D slab. The stage shows the parcel from above (Esri World Imagery) with a pin on the home.
+// (The draw-the-roof tool lives in the full app, js/app.js, and is not part of this build.)
+function showNone() {
+  stage.classList.toggle('none', NONE);
+  let box = document.getElementById('noOutline');
+  if (!NONE) { if (box) box.hidden = true; return; }
+  if (!box) { box = document.createElement('div'); box.id = 'noOutline'; box.className = 'nooutline'; stage.insertBefore(box, stage.firstChild); }
+  box.hidden = false; box.innerHTML = '';
+  const h = window.HOME || {}, r = h.rec || {}, me = h.rawId;
+  const mm = /^m(\d+)$/.exec(h.rawId || ''), gi = mm ? +mm[1] : r.gi != null ? +r.gi : null;
+  const pos = r.lon != null && r.lat != null && isFinite(r.lon) && isFinite(r.lat) ? Promise.resolve([+r.lon, +r.lat])
+    : gi != null && window.STM && STM.lonlat ? STM.lonlat(gi) : Promise.resolve(null);
+  pos.then(p => {
+    if (!p || (window.HOME || {}).rawId !== me) return;
+    const [lon, lat] = p, dx = 75 / (111320 * Math.cos(lat * Math.PI / 180)), dy = 47 / 110574;
+    const src = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=' +
+      [lon - dx, lat - dy, lon + dx, lat + dy].map(v => v.toFixed(6)).join(',') + '&bboxSR=4326&imageSR=3857&size=1200,750&format=jpg&f=image';
+    box.innerHTML = `<img alt="Satellite view of the parcel" src="${src}"><span class="pin" aria-hidden="true"></span><small class="credit">Imagery: Esri, Maxar, Earthstar Geographics</small>`;
+    const img = box.querySelector('img'); img.onerror = () => { box.classList.add('noimg'); img.remove(); };
+  }).catch(() => {});
 }
 
 // real outlines come in every size and shape: back the home view off until the whole plinth and roof are in frame
@@ -484,7 +506,7 @@ function renderPanel() {
   measTitle.textContent = A ? 'Plane ' + A.P.id : 'Roof';
   measPill.textContent = A ? A.P.name : 'Whole roof';
   const first = !focusEl.innerHTML; focusEl.className = 'focus'; if (!first) { void focusEl.offsetWidth; focusEl.classList.add('in'); }
-  if (NONE) { focusEl.innerHTML = `<div class="tot"><div><small>Roof</small><b style="font-size:16px">No outline on file</b></div></div>`; tableEl.innerHTML = ''; return; }
+  if (NONE) { focusEl.innerHTML = `<div class="tot"><div><small>Roof</small><b style="font-size:16px">Outline not on file yet</b></div></div>`; tableEl.innerHTML = ''; return; }
   focusEl.innerHTML = A ? planeHTML(A) : `<div class="tot"><div><small>Total</small><b>${M.squares}<i>sq</i></b></div><div><small>Pitch</small><b>${pitchGap() ? 'Not measured' : M.pitch}</b></div><div><small>Planes</small><b>${M.planes.length}</b></div></div>`;
   tableEl.innerHTML = `<thead><tr><th>Plane</th><th>Pitch</th><th>Area</th><th>Squares</th></tr></thead><tbody>${PLANES.map((P, i) => `<tr data-i="${i}" class="${A && A.P === P ? 'sel' : ''}"><td>${P.name}${P.hit === 'heavy' ? '<span class="tag">hail</span>' : ''}</td><td>${P.rise}/12</td><td>${P.m.area.toLocaleString()} sq ft</td><td><b>${P.m.squares.toFixed(1)}</b></td></tr>`).join('')}</tbody><tfoot><tr><td>Total</td><td>${M.pitch}</td><td>${M.area.toLocaleString()} sq ft</td><td>${M.squares}</td></tr></tfoot>`;
   tableEl.querySelectorAll('tbody tr').forEach(tr => { tr.onclick = () => { const i = +tr.dataset.i; i === activeIdx ? resetView() : focusPlane(i); }; tr.onmouseenter = () => { hoverIdx = +tr.dataset.i; }; tr.onmouseleave = () => { hoverIdx = -1; }; });
