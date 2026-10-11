@@ -119,7 +119,7 @@
       </div>
       <div class="tab on" data-t="meas">
         <div class="tablewrap"><table id="table"></table></div>
-        <p class="note" id="measNote">Measured from the drawing, sample. Plane area is plan area times the pitch factor, squares are area over 100. A field measurement replaces these before the proposal.</p>
+        <p class="note" id="measNote">Estimated from the drawing, sample. Plane area is plan area times the pitch factor, squares are area over 100. Estimated from public building outlines and 2018 LiDAR. Verify on site. A field measurement replaces these before the proposal.</p>
       </div>
       <div class="tab" data-t="act">
         <div class="afil" id="afil" role="group" aria-label="Show">
@@ -162,6 +162,7 @@
 <script src="../c4-command-deck/data/routes-dfw.js"></script>
 <script src="../lib/rc-queue.js"></script>
 <script src="../c4-command-deck/inbox.js"></script><!-- read-only: Inbox.classify, the one reply classifier Today and the CRM share -->
+<script src="draw.js"></script><!-- Draw the roof: outline tracing on the satellite view for homes with no outline on file -->
 <script src="rec.js"></script>
 <script src="pipe.js"></script>
 <script src="crm.js"></script>

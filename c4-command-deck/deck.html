@@ -757,7 +757,7 @@ function why(h,i){
   if (h.pick && h.pick.why && h.pick.why.length) parts.push('<b>Why today:</b> '+h.pick.why.map(esc).join('. ')+'.');
   else if (h.hail==null) parts.push(`On the ${esc(R.storm.date)} storm list, no radar value at this home.`);
   if (h.spec && h.spec.loading) parts.push('Loading the building outline.');
-  else if (h.spec && !h.spec.none && h.sq) parts.push(`Roof measured from the building outline${h.pitchMeasured?' and LiDAR':''}; a field measurement replaces it before the proposal.`);
+  else if (h.spec && !h.spec.none && h.sq) parts.push(`Roof estimated from the building outline${h.pitchMeasured?' and LiDAR':''}. Estimated from public building outlines and 2018 LiDAR. Verify on site.`);
   else parts.push('No building outline for this home yet, so no roof measurement.');
   if (h.past) parts.push('Past customer.');
   if (h.added) parts.push('You added this home from the storm map.');
@@ -837,7 +837,7 @@ function cbHTML(h,i){
     <div class="facts">
       <div><small><span class="ic">${I.hail}</span>Hail at home</small><b>${h.hail!=null?h.hail:'None'}<i>${h.hail!=null?'in, radar':'on file'}</i></b></div>
       <div><small><span class="ic">${I.roof}</span>Roof record</small><b>${h.permit?h.permit.slice(0,4):h.year?h.year:'None'}<i>${h.permit?'reroof permit':h.year?'built, no permit':'no permit on file'}</i></b></div>
-      <div><small><span class="ic">${I.ruler}</span>Pitch</small><b>${h.pitchMeasured&&h.pitch?esc(h.pitch):'Est. '+esc(h.pitch||'6/12')}<i>${h.pitchMeasured?'LiDAR 2018':h.spec&&!h.spec.none?'estimated, no LiDAR':'estimated, no outline'}</i></b></div>
+      <div><small title="Estimated from public building outlines and 2018 LiDAR. Verify on site."><span class="ic">${I.ruler}</span>Pitch est.</small><b>${esc(h.pitch||'6/12')}<i>${h.pitchMeasured?'LiDAR estimate, 2018':h.spec&&!h.spec.none?'estimated, no LiDAR':'estimated, no outline'}</i></b></div>
     </div>
     <p class="why">${why(h,i)}</p>
     <div class="calls">${touchHTML(h)}</div>
@@ -865,7 +865,7 @@ const shortWhy = w => String(w||'')
   .replace(/^Roof about (\d+) years old, no reroof permit on file$/, 'Roof about $1 yrs, no permit')
   .replace(/^Roof about (\d+) years old \(reroof permit (\d+)\)$/, 'Roof about $1 yrs (permit $2)')
   .replace(/ miles from your .* base$/, ' mi from base')
-  .replace(/^About (\d+) squares of roof$/, '$1 squares');
+  .replace(/^About (\d+) squares of roof$/, '~$1 sq (est.)');
 function cadenceBits(h){
   const p = h.pick; if (!p || p.reason !== 'cadence') return null;
   const w = (p.why && p.why[0]) || '', m = /^Day (\d+) follow-up, (.+)$/.exec(w);
@@ -916,7 +916,7 @@ const hpop = document.getElementById('hpop');
 function homePopHTML(h){
   const sent = RC.activity().find(a=>a.id===h.id && a.dir==='out' && (a.ch==='text'||a.ch==='email') && today(a.at)), sch = RC.scheduledFor(h.id);
   const line = sent ? `${sent.ch==='email'?'Email':'Text'} sent ${fmtTime(sent.at)}` : sch ? `Text scheduled, <span data-due="${esc(sch.due)}" data-fmt="short">${esc(RC.countdown(sch.due,'short'))}</span>` : skippedToday(h.id) ? 'Skipped today' : `Home ${h.n} of ${HOMES.length} today`;
-  const facts = [h.hail!=null ? `${h.hail} in hail` : null, h.roofAge || null, h.sq ? `about ${Math.round(h.sq)} squares` : null].filter(Boolean).join(', ');
+  const facts = [h.hail!=null ? `${h.hail} in hail` : null, h.roofAge || null, h.sq ? `about ${Math.round(h.sq)} squares (est.)` : null].filter(Boolean).join(', ');
   const who = h.owner || (RC.ownersAllowed && RC.ownersAllowed() ? RC.OWNER_NONE : '');
   return `<div class="bp-h"><span class="bp-ch"><span class="ic">${I.map || I.text}</span>${esc(line)}</span><button type="button" class="bp-x" aria-label="Close">${I.close}</button></div>` +
     `<div class="bp-to"><span class="bp-l">Home ${h.n}</span><b>${esc(h.addr)}</b><span class="bp-who">${esc([h.city, h.zip].filter(Boolean).join(' '))}${who ? ', ' + esc(who) : ''}</span></div>` +
@@ -1326,8 +1326,10 @@ function fitPad(){
   const host = document.getElementById('map').getBoundingClientRect();
   const tag = document.querySelector('.mtag').getBoundingClientRect();
   // the legend sits in the pill row (top-left), so the bottom-right corner stays clear for Nimbus
-  // phone: the bottom band keeps clear of Nimbus, who floats bottom right
-  const top = tag.height ? tag.bottom - host.top + (phone ? 22 : 34) : 70, bottom = phone ? 96 : 48;
+  // phone: the legend card spans the whole width, so the clear band starts under it with room for a pin (the fit
+  // checks pin centres, the pin is ~20px across and uncollide can nudge a packed pin another ~22px, 10-11); the
+  // bottom band keeps clear of Nimbus, who floats bottom right
+  const top = tag.height ? tag.bottom - host.top + (phone ? 48 : 34) : 70, bottom = phone ? 96 : 48;
   // desktop (direction B): the legend is a column hanging under the pills top-left; fitAll keeps every point out of that
   // block (not out of a whole band, so the homes can still sit low on the left under it)
   const lg = phone ? null : document.querySelector('.mtag .mleg'), lr = lg ? lg.getBoundingClientRect() : null;
@@ -1431,7 +1433,7 @@ function mountReach(){
     pinEl: id=>{ const m = markers[pinIndex(id)]; return m ? m.getElement() : null; },
     homeOf: id=>HOMES.find(x=>x.id===id) || RC.recall(id),
     onOpenHome: id=>{ if (document.documentElement.classList.contains('mapbig')) setBig(false); if (phone) closeSheets(); RC.go('home',{id}); },
-    visible: ()=>!phone || sheets.route.classList.contains('open'),
+    visible: ()=>SHOWN && (!phone || sheets.route.classList.contains('open')),   // the fan starts drawing only once the screen is in view
     legendHost: document.querySelector('.mtag'),
     top: ()=>{ const t = document.querySelector('.mtag').getBoundingClientRect(), h = document.getElementById('map').getBoundingClientRect(); return t.height ? t.bottom - h.top + 8 : 24; },
     onLayout: ()=>{ const hgt = reach ? Math.round(reach.legend.getBoundingClientRect().height) : 0;   // refit only when the legend grew or shrank
@@ -1445,6 +1447,21 @@ function inView(loc){ if (!map) return false; const p = map.project(loc), host =
   return p.x > pad.left/2 && p.x < host.width - pad.right/2 && p.y > pad.top - 20 && p.y < host.height - pad.bottom + 20; }
 
 // ---------- start ----------
+// first open: the shell (product.html) keeps the opening on screen until this page is genuinely ready, so the first
+// thing the roofer sees of Today is a finished screen. Ready = the Daily 50 built and the first cards painted, the map
+// style and the tiles for the first view drawn (maplibre 'idle'), and the message lines mounted and waiting. The shell
+// holds the frame with data-hold on the iframe; the fan of lines waits for the reveal (SHOWN) so it draws in view.
+let SHOWN = true; try { SHOWN = !(window.frameElement && window.frameElement.dataset.hold === '1'); } catch(e){}
+const toShell = m => { if (window.parent === window) return; try { window.parent.postMessage(m, location.origin); } catch(e){} };
+const READY = { cards:false, map:false, sent:false };
+function readyStage(name){ toShell({ type:'today-stage', stage:name }); }
+function readyCheck(why){
+  if (READY.sent) return; if (why !== 'force' && !(READY.cards && READY.map)) return;
+  READY.sent = true; window.__todayReady = performance.now(); toShell({ type:'today-ready', why:why||'ready', t:Math.round(window.__todayReady) });
+}
+const onShown = [];   // work that waits for the reveal (the owner roll, several MB): never during the opening or the crossfade
+function whenShown(f){ if (SHOWN) f(); else onShown.push(f); }
+function reveal(){ if (SHOWN) return; SHOWN = true; const q = onShown.splice(0); setTimeout(()=>q.forEach(f=>{ try{ f(); }catch(e){} }), 1200); }
 // the map libraries (preloaded in <head>) run once the first card is up, so the list never waits on 2 MB of script
 let MAPLIBS = null;
 const mapLibs = () => MAPLIBS || (MAPLIBS = new Promise(res=>requestAnimationFrame(()=>setTimeout(res,0))).then(()=>['../vendor/maplibre-gl@4.7.1/maplibre-gl.js','../vendor/deck.gl@9.0.38/dist.min.js']
@@ -1471,6 +1488,7 @@ function startMap(){
       // the shell may size this frame after load (kept-alive tabs): refit whenever the map box changes size
       let rz=0; new ResizeObserver(()=>{ clearTimeout(rz); rz=setTimeout(()=>{ map.resize(); fitAll(true); },120); }).observe(document.getElementById('map'));
       setTimeout(()=>{window.__mapReady = true;},800);
+      readyStage('map');
       // a frame the shell sized late can miss the first fit: if any pin sits under the stop card or the pill row, fit again
       const settled = ()=>{ if (!markers.length) return; const host = document.getElementById('map').getBoundingClientRect(), pad = fitPad();
         const pts = markers.map(m=>m.getLngLat()).concat(reach ? [reach.hqLoc] : []);
@@ -1478,18 +1496,24 @@ function startMap(){
       setTimeout(settled, 1200); setTimeout(settled, 3000);
     });
     buildMarkers(); mountReach();
+    // ready for the reveal once the style and the first view's tiles have drawn (maplibre 'idle') and the lines are mounted;
+    // registered here, not inside 'load', so a throttled tab (background, hidden pane) still reaches the fallback
+    map.once('idle', ()=>{ mountReach(); READY.map = true; readyStage('lines'); readyCheck(); });
+    setTimeout(()=>{ if (!READY.map){ READY.map = true; readyCheck('tiles-slow'); } }, 9000);   // slow tiles never hold the roofer past the shell's cap
     try { fitAll(true); } catch(e){}   // frame the route before the style arrives, so pins never wait on slow tiles
-  }catch(e){ window.__mapReady = true; }
+  }catch(e){ window.__mapReady = true; readyCheck('force'); }
 }
 function startList(){
   buildList();
   cur = Math.max(0, want ? HOMES.findIndex(h=>h.id===want) : wantN ? HOMES.findIndex(h=>h.n===wantN) : HOMES.findIndex(h=>!isDone(h)));
   buildCards(); renderHeader(); layout();
-  if (!HOMES.length){ window.__mapReady = true; return; }
-  mapLibs().then(startMap, ()=>{ window.__mapReady = true; }); loadRoofs();
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{ READY.cards = true; readyStage('cards'); readyCheck(); }));   // the first cards are painted
+  if (!HOMES.length){ window.__mapReady = true; readyCheck('force'); return; }
+  mapLibs().then(startMap, ()=>{ window.__mapReady = true; readyCheck('force'); }); loadRoofs();
   // the private owner roll is the biggest file on this screen (several MB): it follows the map libraries and the first
-  // outlines instead of competing with them for the connection; names fill in on the cards as it lands
-  setTimeout(warmOwners, 1500);
+  // outlines instead of competing with them for the connection; names fill in on the cards as it lands. On the first
+  // open it also waits for the reveal, so it never fights the tiles or the crossfade.
+  setTimeout(()=>whenShown(warmOwners), 1500);
 }
 // rebuild the list from the engine (a new day, an opt-out, a home added on the storm map), keeping the open card
 function relist(fresh){
@@ -1501,7 +1525,7 @@ function relist(fresh){
 }
 // own data: each stop's real owner (when signed in and the private roll is available), then repaint the cards
 function warmOwners(){ if (!OWNDATA) return; HOMES.forEach(h=>{ if (h.gi==null || h.owner) return; RC.owner(h.gi).then(o=>{ if(!o) return; h.owner=o.name; const i = HOMES.indexOf(h); if (i<0) return; try{ refreshCard(i); renderQueue(); }catch(e){} }); }); }
-RC.queueReady.then(ok=>{ QREADY = !!ok; if (ok) setStorm(RC.queueStats().storm); if (!ok){ QERR = (RC.queueStats().err) || 'the storm data did not load'; renderQueue(false); renderMapCard(); window.__mapReady = true; return; } startList(); });
+RC.queueReady.then(ok=>{ QREADY = !!ok; if (ok) setStorm(RC.queueStats().storm); if (!ok){ QERR = (RC.queueStats().err) || 'the storm data did not load'; renderQueue(false); renderMapCard(); window.__mapReady = true; readyCheck('force'); return; } startList(); });
 // Up next leads until something has been sent; after that the last tab picked on this device comes back
 { let t = null; try { t = localStorage.getItem(TABK); } catch(e){} setTab(THREADS && t === 'inbox' ? 'inbox' : 'next'); }
 // real storm facts from the catalog (the same list the storm map draws from)
@@ -1530,7 +1554,7 @@ addEventListener('message', e=>{ if (e.origin !== location.origin || !e.data) re
   if (d.type==='find-key'){ if (d.key==='Enter'){ const b=document.querySelector('#qlist [data-go]'); if (b) go(+b.dataset.go, true); } if (d.key==='Enter'||d.key==='Escape'){ findIn.value=''; query=''; renderQueue(false); } return; }
   if (d.type==='find-close'){ if (document.activeElement!==findIn && findIn.value){ findIn.value=''; query=''; renderQueue(false); } return; }
   if (d.type==='find-open'){ findIn.focus(); return; }
-  if (d.type==='visibility'){ if (!d.hidden && map){ setTimeout(()=>{ map.resize(); fitAll(true); }, 60); } return; }
+  if (d.type==='visibility'){ if (!d.hidden){ reveal(); if (map) setTimeout(()=>{ map.resize(); fitAll(true); if (reach) reach.update(); }, 60); } return; }
   if (d.type !== 'route') return;
   if (e.data.token && e.source) try { e.source.postMessage({ type:'routed', token:e.data.token }, e.origin); } catch(err){}
   const pr = e.data.params || {}, i = pr.id ? HOMES.findIndex(h=>h.id===pr.id) : pr.n ? HOMES.findIndex(h=>h.n===+pr.n) : -1;

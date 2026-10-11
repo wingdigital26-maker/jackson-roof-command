@@ -61,10 +61,23 @@ const HAIL_MAX = (window.RC && RC.facts.storm.max) || 1.41;
 // The roof is the home's REAL roof: its building outline through the roof solver (lib/real-roof.js spec: feet,
 // x east, y south, z above the eave). A Daily 50 stop is rebuilt from data/roofs-dfw.js every time (never a stale
 // saved drawing); no id = the default real house; no outline on file = an honest empty state, no squares.
-let NONE = false, DEFAULT_HOUSE = false;
+let NONE = false, DEFAULT_HOUSE = false, DRAWN = null, SUSP = '';
+// an outline the roofer drew on the satellite view (c5-home/draw.js) replaces whatever is on file for this home: the same
+// solver, the same squares maths; the label says "Drawn by you" and the pitch stays the estimate's 6/12 unless LiDAR measured it
+function drawnSpecFor(h) {
+  const RR = window.RealRoof, RD = window.RoofDraw; if (!RR || !RD || !h.rawId) return null;
+  const d = RD.read(h.rawId); if (!d) return null;
+  const mm = /^m(\d+)$/.exec(h.rawId), onFile = mm && RR.mapCached ? RR.mapCached(mm[1]) : null;
+  const sp = RR.spec(RD.entry(d.pts, onFile && onFile.pitch), { seed: 7 });
+  if (!sp || sp.none) return null;
+  sp.drawn = true; DRAWN = d;
+  sp.label = 'Outline drawn by you' + (sp.pitchMeasured ? `, ${sp.rise}/12 pitch est. from LiDAR (2018)` : '. Pitch est. 6/12 (no LiDAR)');
+  return sp;
+}
 function realSpecFor(h) {
   const RR = window.RealRoof, ROOFS = window.ROOFS || {};
   if (!RR) return h.spec || null;
+  DRAWN = null; const ds = drawnSpecFor(h); if (ds) return ds;
   const dm = /^d([a-z]+)-(\d+)$/.exec(h.rawId || '');
   const dk = dm ? dm[1] : null;   // the roofer's own roofs (same as the Daily 50)
   if (dm && ROOFS[dk]) return RR.spec(ROOFS[dk]['stop' + dm[2]], { seed: +dm[2] });
@@ -104,6 +117,15 @@ else if (SPEC) {
   FP = SPEC.fp.map(p => T([p[0], p[1], 0]));
   SPEC_INFO = { style: SPEC.mainStyle === 'gable' ? 'gable roof' : 'hip roof', real: !!SPEC.real };
 }
+// an outline on file that does not look like this home: footprint not house-sized, or far off the county living area
+// (the same 0.4 to 2.0 band scripts/dfw/outline_fill.py accepts). Shown as "Fix outline", never silently used for a quote.
+SUSP = '';
+if (SPEC && SPEC.real && !SPEC.drawn) {
+  const mm = /^m(\d+)$/.exec(H0.rawId || ''), e = mm && window.RealRoof && RealRoof.mapCached ? RealRoof.mapCached(mm[1]) : null;
+  const fp = e && e.sqft, living = H0.rec && +H0.rec.sqft;
+  if (fp && (fp < 300 || fp > 15000)) SUSP = `${fp.toLocaleString()} sq ft footprint is not house-sized`;
+  else if (fp && living && (fp / living < 0.4 || fp / living > 2.0)) SUSP = `${fp.toLocaleString()} sq ft footprint against ${living.toLocaleString()} sq ft of living area`;
+}
 
 // ---------- measurements (all computed) ----------
 M = { planes: [], edgeTotals: {}, area: 0, squares: 0 };
@@ -124,7 +146,7 @@ if (SPEC && SPEC.real && SPEC.squares != null) M.squares = SPEC.squares; // real
 if (NONE) { M.pitch = ''; M.waste = 0; M.edgeTotals = {}; if (window.HOME) { window.HOME.measure = null; if (window.renderRecord) window.renderRecord(); } return; }
 { const by = {}; PLANES.forEach(P => by[P.rise] = (by[P.rise] || 0) + P.m.area); M.pitch = Object.entries(by).sort((a, b) => b[1] - a[1])[0][0] + '/12'; }
 { const ty = PLANES.flatMap(P => P.types); const cx = ty.filter(t => t === 'hip').length / 2 + ty.filter(t => t === 'valley').length; M.waste = cx === 0 ? 10 : cx <= 4 ? 12 : cx <= 8 ? 15 : 18; }
-if (window.HOME) { window.HOME.measure = { squares: M.squares, waste: M.waste, pitch: M.pitch }; if (window.renderRecord) window.renderRecord(); }
+if (window.HOME) { window.HOME.measure = { squares: M.squares, waste: M.waste, pitch: M.pitch, drawn: !!(SPEC && SPEC.drawn), pitchMeasured: !!(SPEC && SPEC.pitchMeasured) }; if (window.renderRecord) window.renderRecord(); }
 }
 // angle of the footprint's minimum-area bounding rectangle, folded into [-45, 45] deg (convex hull, one try per hull edge)
 function squareAngle(pts) {
@@ -371,7 +393,7 @@ DIMS.forEach(d => {
 // ---------- labels ----------
 labelsEl.innerHTML = '';
 planeGroups.forEach((pg, i) => {
-  pg.pin = mk('pin' + (pg.P.hit ? ' hit' : ''), `<i>${pg.P.id}</i>${pg.P.m.squares.toFixed(1)} sq <small>${pg.P.rise}/12</small>`);
+  pg.pin = mk('pin' + (pg.P.hit ? ' hit' : ''), `<i>${pg.P.id}</i>~${pg.P.m.squares.toFixed(1)} sq <small>est. ${pg.P.rise}/12</small>`);
   pg.pin.onclick = () => focusPlane(i);
   pg.epins = pg.P.m.edges.map(e => mk('epin', `<i style="background:${EDGE_COL[e.type]}"></i><b>${e.ft} ft</b><span>${EDGE_LABEL[e.type]}</span>`));
   if (pg.P.hit) pg.hpin = mk('hpin' + (pg.P.hit === 'light' ? ' low' : ''), `<div class="k"><i>${pg.P.id}</i>${pg.P.name}</div><div class="big"><em>${HAIL.size}</em> hail, ${HAIL.date}</div><div class="s">${pg.hits} marks, ${pg.P.hit === 'heavy' ? 'faced the storm' : 'glancing side'}</div>`);
@@ -413,32 +435,71 @@ function build() {
   }
   activeIdx = -1; hoverIdx = -1; explodeTarget = 0; explodeT = 0; frames = 0; stage.classList.remove('focused');
   bExplode.classList.remove('on'); bExplode.textContent = 'Explode';
-  document.getElementById('titleH').textContent = NONE ? 'Outline not on file yet' : `${M.squares} squares, ${SPEC_INFO ? SPEC_INFO.style : 'hip roof'}, ${pitchGap() ? 'pitch not measured' : M.pitch}`;
+  const pitchTxt = SPEC && SPEC.drawn ? (SPEC.pitchMeasured ? 'pitch est. ' + M.pitch : 'pitch estimated') : pitchGap() ? 'pitch est. (no LiDAR)' : 'pitch est. ' + M.pitch;
+  document.getElementById('titleH').title = 'Estimated from public building outlines and 2018 LiDAR. Verify on site.'; document.getElementById('titleH').textContent = NONE ? 'Outline not on file yet' : `~${M.squares} sq (est.), ${SPEC_INFO ? SPEC_INFO.style : 'hip roof'}, ${pitchTxt}`;
   document.getElementById('titleP').textContent = NONE ? 'The public building maps have no outline for this home yet, so there are no squares to show. This is the parcel from above.'
     : `${SPEC.label}${DEFAULT_HOUSE ? " (stop 1 on today's route)" : ''}. Drag to turn it, click a plane to measure it.`;
-  showNone();
+  showNone(); renderTag();
 }
-// no outline on file: no 3D slab. The stage shows the parcel from above (Esri World Imagery) with a pin on the home.
-// (The draw-the-roof tool lives in the full app, js/app.js, and is not part of this build.)
+// the home's position (lon, lat): the record's, else homes.bin by its index (a record opened cold by id)
+function homePos() {
+  const h = window.HOME || {}, r = h.rec || {};
+  const mm = /^m(\d+)$/.exec(h.rawId || ''), gi = mm ? +mm[1] : r.gi != null ? +r.gi : null;
+  return r.lon != null && r.lat != null && isFinite(r.lon) && isFinite(r.lat) ? Promise.resolve([+r.lon, +r.lat])
+    : gi != null && window.STM && STM.lonlat ? STM.lonlat(gi) : Promise.resolve(null);
+}
+// no outline on file: no 3D slab. The stage shows the parcel from above (USDA NAIP via USGS, c5-home/draw.js imageUrl) with a pin on the home
+// and a "Draw the roof" button (c5-home/draw.js).
 function showNone() {
   stage.classList.toggle('none', NONE);
   let box = document.getElementById('noOutline');
   if (!NONE) { if (box) box.hidden = true; return; }
   if (!box) { box = document.createElement('div'); box.id = 'noOutline'; box.className = 'nooutline'; stage.insertBefore(box, stage.firstChild); }
   box.hidden = false; box.innerHTML = '';
-  const h = window.HOME || {}, r = h.rec || {}, me = h.rawId;
-  const mm = /^m(\d+)$/.exec(h.rawId || ''), gi = mm ? +mm[1] : r.gi != null ? +r.gi : null;
-  const pos = r.lon != null && r.lat != null && isFinite(r.lon) && isFinite(r.lat) ? Promise.resolve([+r.lon, +r.lat])
-    : gi != null && window.STM && STM.lonlat ? STM.lonlat(gi) : Promise.resolve(null);
-  pos.then(p => {
+  const h = window.HOME || {}, me = h.rawId;
+  homePos().then(p => {
     if (!p || (window.HOME || {}).rawId !== me) return;
-    const [lon, lat] = p, dx = 75 / (111320 * Math.cos(lat * Math.PI / 180)), dy = 47 / 110574;
-    const src = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=' +
-      [lon - dx, lat - dy, lon + dx, lat + dy].map(v => v.toFixed(6)).join(',') + '&bboxSR=4326&imageSR=3857&size=1200,750&format=jpg&f=image';
-    box.innerHTML = `<img alt="Satellite view of the parcel" src="${src}"><span class="pin" aria-hidden="true"></span><small class="credit">Imagery: Esri, Maxar, Earthstar Geographics</small>`;
+    const [lon, lat] = p, src = window.RoofDraw ? RoofDraw.imageUrl(lon, lat, 75) : '';
+    box.innerHTML = `<img alt="Satellite view of the parcel" src="${src}"><span class="pin" aria-hidden="true"></span>
+      ${h.rawId && window.RoofDraw ? `<div class="drawcta"><button type="button" class="drawbtn" id="bDraw">Draw the roof</button><small>Tap the roof's corners on the satellite view to get squares and a 3D roof.</small></div>` : ''}
+      <small class="credit">Imagery: USDA NAIP via USGS The National Map</small>`;
     const img = box.querySelector('img'); img.onerror = () => { box.classList.add('noimg'); img.remove(); };
+    const b = box.querySelector('#bDraw'); if (b) b.onclick = () => startDraw(false);
   }).catch(() => {});
 }
+// the small note under the stage title: "Drawn by you" with Redraw / Remove, or "Fix outline" when the one on file looks wrong
+let tagEl = null;
+function renderTag() {
+  if (!tagEl) { tagEl = document.createElement('div'); tagEl.className = 'stagetag'; tagEl.id = 'stageTag'; document.querySelector('.title').appendChild(tagEl); }
+  const h = window.HOME || {};
+  if (NONE || !h.rawId || !window.RoofDraw) { tagEl.hidden = true; tagEl.innerHTML = ''; return; }
+  tagEl.hidden = false;
+  if (SPEC && SPEC.drawn) {
+    const when = DRAWN && DRAWN.at ? new Date(DRAWN.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+    tagEl.innerHTML = `<span class="tg tg-you">Drawn by you${when ? ', ' + when : ''}</span><button type="button" data-t="redraw">Redraw</button><button type="button" data-t="remove">Remove drawing</button>`;
+  } else if (SUSP) {
+    tagEl.innerHTML = `<span class="tg tg-warn">Outline may not match this home</span><span class="why">${SUSP}.</span><button type="button" class="fix" data-t="fix">Fix outline</button>`;
+  } else { tagEl.hidden = true; tagEl.innerHTML = ''; return; }
+  tagEl.querySelectorAll('[data-t]').forEach(b => { b.onclick = () => {
+    if (b.dataset.t === 'remove') { RoofDraw.erase(h.rawId); window.__switchHome(); }
+    else startDraw(true);
+  }; });
+}
+// ---------- the drawing flow ----------
+let drawTool = null;
+function startDraw(redraw) {
+  const h = window.HOME || {}, me = h.rawId; if (!me || !window.RoofDraw || drawTool) return;
+  homePos().then(p => {
+    if (!p || (window.HOME || {}).rawId !== me || drawTool) return;
+    stage.classList.add('drawing');
+    const prior = SPEC && SPEC.drawn && DRAWN ? DRAWN.pts : null;
+    drawTool = RoofDraw.mount(stage, { lon: p[0], lat: p[1], pts: prior, redraw: !!redraw, level: prior ? 2 : 1,
+      onCancel: endDraw,
+      onUse: pts => { RoofDraw.write(me, pts); endDraw(); window.__switchHome(); } });
+  }).catch(() => {});
+}
+function endDraw() { if (drawTool) { drawTool.destroy(); drawTool = null; } stage.classList.remove('drawing'); }
+window.__startDraw = startDraw; window.__endDraw = endDraw;
 
 // real outlines come in every size and shape: back the home view off until the whole plinth and roof are in frame
 function fitHome() {
@@ -494,8 +555,8 @@ function resetView() {
 }
 function planeHTML(pg) {
   const m = pg.P.m, P = pg.P;
-  return `<div class="fx${P.hit ? ' hit' : ''}"><div class="fh"><i>${P.id}</i><div><b>${P.name}</b><small>${P.rise}/12 pitch, pitch factor ${m.factor.toFixed(3)}</small></div></div>
-    <div class="big">${m.squares.toFixed(1)}<i>squares</i></div>
+  return `<div class="fx${P.hit ? ' hit' : ''}"><div class="fh"><i>${P.id}</i><div><b>${P.name}</b><small>Pitch est. ${P.rise}/12, pitch factor ${m.factor.toFixed(3)}</small></div></div>
+    <div class="big" title="Estimated from public building outlines and 2018 LiDAR. Verify on site.">~${m.squares.toFixed(1)}<i>squares (est.)</i></div>
     <div class="line">${m.area.toLocaleString()} sq ft of roof from ${m.plan.toLocaleString()} sq ft of plan at ${P.rise}/12. ${Math.round(m.area / M.area * 100)}% of the roof.</div>
     <div class="edges">${m.edges.map(e => `<div><i style="background:${EDGE_COL[e.type]}"></i>${EDGE_LABEL[e.type]}<b>${e.ft} ft</b></div>`).join('')}</div>
     ${P.hit ? `<div class="hailline"><span class="ic">${I.hail}</span>${HAIL.size} hail ${HAIL.date}, ${pg.hits} marks${P.hit === 'heavy' ? ', faced the storm' : ', glancing side'}</div>` : ''}
@@ -507,8 +568,8 @@ function renderPanel() {
   measPill.textContent = A ? A.P.name : 'Whole roof';
   const first = !focusEl.innerHTML; focusEl.className = 'focus'; if (!first) { void focusEl.offsetWidth; focusEl.classList.add('in'); }
   if (NONE) { focusEl.innerHTML = `<div class="tot"><div><small>Roof</small><b style="font-size:16px">Outline not on file yet</b></div></div>`; tableEl.innerHTML = ''; return; }
-  focusEl.innerHTML = A ? planeHTML(A) : `<div class="tot"><div><small>Total</small><b>${M.squares}<i>sq</i></b></div><div><small>Pitch</small><b>${pitchGap() ? 'Not measured' : M.pitch}</b></div><div><small>Planes</small><b>${M.planes.length}</b></div></div>`;
-  tableEl.innerHTML = `<thead><tr><th>Plane</th><th>Pitch</th><th>Area</th><th>Squares</th></tr></thead><tbody>${PLANES.map((P, i) => `<tr data-i="${i}" class="${A && A.P === P ? 'sel' : ''}"><td>${P.name}${P.hit === 'heavy' ? '<span class="tag">hail</span>' : ''}</td><td>${P.rise}/12</td><td>${P.m.area.toLocaleString()} sq ft</td><td><b>${P.m.squares.toFixed(1)}</b></td></tr>`).join('')}</tbody><tfoot><tr><td>Total</td><td>${M.pitch}</td><td>${M.area.toLocaleString()} sq ft</td><td>${M.squares}</td></tr></tfoot>`;
+  focusEl.innerHTML = A ? planeHTML(A) : `<div class="tot"><div><small>Total</small><b title="Estimated from public building outlines and 2018 LiDAR. Verify on site.">~${M.squares}<i>sq (est.)</i></b></div><div><small>Pitch est.</small><b>${pitchGap() ? 'No LiDAR' : M.pitch}</b></div><div><small>Planes</small><b>${M.planes.length}</b></div></div>`;
+  tableEl.innerHTML = `<thead><tr><th>Plane</th><th>Pitch est.</th><th>Area est.</th><th>Squares est.</th></tr></thead><tbody>${PLANES.map((P, i) => `<tr data-i="${i}" class="${A && A.P === P ? 'sel' : ''}"><td>${P.name}${P.hit === 'heavy' ? '<span class="tag">hail</span>' : ''}</td><td>${P.rise}/12</td><td>${P.m.area.toLocaleString()} sq ft</td><td><b>${P.m.squares.toFixed(1)}</b></td></tr>`).join('')}</tbody><tfoot><tr><td>Total</td><td>${M.pitch}</td><td>${M.area.toLocaleString()} sq ft</td><td>~${M.squares}</td></tr></tfoot>`;
   tableEl.querySelectorAll('tbody tr').forEach(tr => { tr.onclick = () => { const i = +tr.dataset.i; i === activeIdx ? resetView() : focusPlane(i); }; tr.onmouseenter = () => { hoverIdx = +tr.dataset.i; }; tr.onmouseleave = () => { hoverIdx = -1; }; });
   focusEl.querySelectorAll('[data-whole]').forEach(b => b.onclick = resetView);
   if (isPhone) {
@@ -618,6 +679,7 @@ setMode('planes'); renderPanel();
 flyTo(HOME.pos.clone(), HOME.target.clone(), 1.5);
 // another home: quick crossfade, rebuild the roof in place, fly back to the home view
 window.__switchHome = () => {
+  endDraw();
   stage.classList.add('swap');
   setTimeout(() => {
     build(); setMode('planes'); renderPanel(); resize();

@@ -42,6 +42,9 @@
   <p class="beat-facts"><span><b id="f-homes"></b> homes watched across <span id="f-counties"></span> counties</span><span>Last storm <b id="f-storm">Jun 2</b>, <b id="f-hit"></b> homes hit</span></p>
 </section>
 
+<!-- the loading cue (?wait=1, the first open): shown only when Today is still getting ready after the beats. One hairline, one quiet line of text. -->
+<div class="load" id="load" aria-live="polite"><i class="load-bar"></i><span id="load-t">Opening today</span></div>
+
 <!-- BEAT 3: storm report, only when a storm came through in the last 7 days (or ?storm=1). Nothing sends. -->
 <section class="beat" id="beat-storm" aria-live="polite">
   <p class="beat-kicker">Storm report, <b id="s-storm">Jun 2</b></p>

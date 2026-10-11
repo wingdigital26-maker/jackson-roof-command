@@ -658,3 +658,70 @@ body.pdrag .pcols{scroll-snap-type:none}   /* edge scrolling while dragging a ca
 .nooutline .credit{position:absolute;right:10px;bottom:8px;z-index:1;font-size:10.5px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.7)}
 .nooutline.noimg::after{display:none}
 .stage.none .title{z-index:2}
+
+/* ---------- Draw the roof (c5-home/draw.js): the empty state's call to action, the tracing tool, the title tag ---------- */
+.nooutline .drawcta{position:absolute;left:50%;bottom:34px;transform:translateX(-50%);z-index:2;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;width:min(92%,420px)}
+.nooutline .drawbtn{height:48px;padding:0 26px;border-radius:999px;background:var(--ink);color:#fff;font-weight:600;font-size:15px;box-shadow:0 12px 30px rgba(11,16,32,.28);transition:transform .2s,background .2s}
+.nooutline .drawbtn:hover{background:var(--ink-2);transform:translateY(-1px)}
+.nooutline .drawcta small{color:#fff;font-size:12.5px;text-shadow:0 1px 3px rgba(0,0,0,.75);line-height:1.35}
+.stage.drawing #gl,.stage.drawing .dock,.stage.drawing .labels,.stage.drawing .legend,.stage.drawing .title,.stage.drawing .nooutline{display:none!important}
+.dr{position:absolute;inset:0;z-index:4;background:#E9ECF2;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;cursor:crosshair}
+.dr-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;transition:opacity .25s}
+.dr.loading .dr-img{opacity:.45}
+.dr.noimg .dr-img{display:none}
+.dr-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.dr-home{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:#fff;border:2px solid var(--ink);box-shadow:0 0 0 4px rgba(255,255,255,.35);pointer-events:none;opacity:.9}
+.dr-line,.dr-poly{fill:none;stroke:#fff;stroke-width:2.5;stroke-linejoin:round;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+.dr-poly{fill:rgba(255,255,255,.18);stroke:var(--accent-hi,#1388BF);stroke-width:3}
+.dr-rub{stroke:#fff;stroke-width:1.6;stroke-dasharray:5 5;opacity:.85}
+.dr-vh{fill:transparent;cursor:grab}
+.dr-v{fill:#fff;stroke:var(--ink);stroke-width:2.5;pointer-events:none}
+.dr-v.dr-first{fill:var(--accent-hi,#1388BF);stroke:#fff;animation:drpulse 1.2s ease-in-out infinite}
+@keyframes drpulse{0%,100%{stroke-width:2.5}50%{stroke-width:6}}
+.dr-lbg{fill:rgba(11,16,32,.82)}
+.dr-lab{fill:#fff;font:600 12px var(--mono);pointer-events:none}
+.dr-top{position:absolute;left:12px;top:12px;right:72px;z-index:2;background:var(--panel,rgba(255,255,255,.92));border:1px solid var(--hair);border-radius:14px;padding:10px 14px;box-shadow:0 10px 30px rgba(11,16,32,.12);display:flex;flex-direction:column;gap:2px;pointer-events:none;max-width:460px}
+.dr-tt{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.dr-top b{font-weight:600;font-size:15px;color:var(--ink)}
+.dr-cancel{pointer-events:auto;height:28px;padding:0 11px;border-radius:999px;border:1px solid var(--hair);font-size:12.5px;font-weight:600;color:var(--ink-2);background:#fff}
+.dr-cancel:hover{border-color:var(--ink);color:var(--ink)}
+.dr-hint{font-size:13px;color:var(--muted);line-height:1.35}
+.dr-zoom{position:absolute;right:12px;top:12px;z-index:2;display:flex;flex-direction:column;background:var(--panel,rgba(255,255,255,.92));border:1px solid var(--hair);border-radius:12px;box-shadow:0 10px 30px rgba(11,16,32,.12);overflow:hidden}
+.dr-zoom button{width:44px;height:44px;font-size:22px;font-weight:500;color:var(--ink);display:grid;place-items:center}
+.dr-zoom button+button{border-top:1px solid var(--hair-2)}
+.dr-zoom button:hover{background:var(--panel-2)}
+.dr-zoom button:disabled{color:var(--muted);opacity:.5}
+.dr-bar{position:absolute;left:12px;right:12px;bottom:12px;z-index:2;display:flex;flex-direction:column;align-items:center;gap:8px}
+.dr-info{background:rgba(11,16,32,.82);color:#fff;border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:500;font-feature-settings:"tnum" 1}
+.dr-btns{display:flex;gap:4px;background:var(--panel,rgba(255,255,255,.94));border:1px solid var(--hair);border-radius:999px;padding:5px;box-shadow:0 10px 30px rgba(11,16,32,.14);max-width:100%;overflow-x:auto;scrollbar-width:none}
+.dr-btns::-webkit-scrollbar{display:none}
+.dr-btns button{height:40px;padding:0 15px;border-radius:999px;font-size:13.5px;font-weight:600;color:var(--ink-2);white-space:nowrap;transition:background .2s,color .2s}
+.dr-btns button:hover{background:var(--panel-2)}
+.dr-btns button:disabled{color:var(--muted);opacity:.55;background:transparent}
+.dr-btns button.on{background:var(--panel-3);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink)}
+.dr-btns .dr-ghost{color:var(--muted);font-weight:500}
+.dr-btns .dr-use{background:var(--ink);color:#fff}
+.dr-btns .dr-use:hover{background:var(--ink-2)}
+.dr-btns .dr-use:disabled{background:transparent;color:var(--muted);box-shadow:inset 0 0 0 1.5px var(--hair)}
+.dr-credit{position:absolute;right:12px;bottom:76px;z-index:1;font-size:10.5px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.7);pointer-events:none}
+.stagetag{margin-top:10px;display:flex;align-items:center;flex-wrap:wrap;gap:8px;pointer-events:auto;max-width:520px}
+.stagetag .tg{display:inline-flex;align-items:center;height:26px;padding:0 11px;border-radius:999px;font-size:12px;font-weight:600}
+.stagetag .tg-you{background:var(--ink);color:#fff}
+.stagetag .tg-warn{background:#FFF3DC;color:var(--brass);border:1px solid rgba(138,90,0,.25)}
+.stagetag .why{font-size:12.5px;color:var(--muted)}
+.stagetag button{height:28px;padding:0 12px;border-radius:999px;border:1px solid var(--hair);background:rgba(255,255,255,.9);font-size:12.5px;font-weight:600;color:var(--ink);transition:background .2s}
+.stagetag button:hover{background:#fff;border-color:var(--ink)}
+.stagetag button.fix{background:var(--ink);border-color:var(--ink);color:#fff}
+.stagetag button.fix:hover{background:var(--ink-2)}
+@media (max-width:640px){
+  .nooutline .drawcta{bottom:22px}
+  .nooutline .drawbtn{height:46px;font-size:14.5px}
+  .dr-top{left:10px;right:64px;top:10px;padding:8px 12px}.dr-top b{font-size:14px}.dr-hint{font-size:12.5px}
+  .dr-zoom{right:10px;top:10px}.dr-zoom button{width:42px;height:42px}
+  .dr-bar{left:8px;right:8px;bottom:10px}
+  .dr-btns{flex-wrap:wrap;justify-content:center;width:100%;border-radius:24px;padding:6px;overflow:visible;gap:2px}
+  .dr-btns button{height:40px;padding:0 11px;font-size:13px;flex:1 1 auto}
+  .dr-btns .dr-use{order:-1;flex:1 1 100%;justify-content:center;display:inline-flex;align-items:center;height:46px;font-size:14.5px;margin-bottom:2px}
+  .dr-credit{bottom:122px}
+  .stagetag{margin-top:6px;gap:6px}.stagetag .why{display:none}
+}

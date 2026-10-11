@@ -165,7 +165,7 @@
     const chip = (k, n, label) => `<span class="${n ? '' : 'z'}" title="${n} ${label}${n === 1 ? '' : 's'} logged on this device">${ICON[k]}${n}</span>`;
     return `<article class="pc${cur ? ' cur' : ''}${stale ? ' stale' : ''}${won ? ' won' : ''}${arch ? ' parked' : ''}" data-id="${esc(h.id)}" title="${stale ? esc(staleTip(st, days)) : arch ? 'Parked in Not now. Restore puts it back in ' + esc(sName) + '.' : 'Drag to a new stage, click to open'}">
       <button type="button" class="pco"${cur ? ' aria-current="true"' : ''}>${won ? `<span class="pwon">Won${sd ? ', signed ' + fmtDay(sd + (sd.length === 10 ? 'T12:00:00' : '')) : ''}</span>` : ''}<b>${esc(h.addr)}</b>${h.city ? `<small class="pcc">${esc(h.city)}${h.stop ? ', stop ' + h.stop : ''}</small>` : ''}${own ? `<span class="pown">${esc(own)}</span>` : ''}
-        <span class="pmeta">${h.hail != null ? `<span class="phail"${h.storm ? ` title="${h.hail.toFixed(2)} in hail on radar, storm of ${esc(stormDay(h.storm))}"` : ' title="Hail on radar"'}>${h.hail.toFixed(2)} in${h.storm ? `<i>${esc(stormDay(h.storm, true))}</i>` : ' hail'}</span>` : ''}${sq != null ? `<span class="psq" title="Measured from the roof outline">${sq} sq</span>` : ''}</span>
+        <span class="pmeta">${h.hail != null ? `<span class="phail"${h.storm ? ` title="${h.hail.toFixed(2)} in hail on radar, storm of ${esc(stormDay(h.storm))}"` : ' title="Hail on radar"'}>${h.hail.toFixed(2)} in${h.storm ? `<i>${esc(stormDay(h.storm, true))}</i>` : ' hail'}</span>` : ''}${sq != null ? `<span class="psq" title="Estimated from public building outlines and 2018 LiDAR. Verify on site.">~${sq} sq (est.)</span>` : ''}</span>
         <span class="prow"><span class="page${stale ? ' late' : ''}" title="${esc(ageTip)}">${esc(age)}</span><span class="pch" aria-label="${ch.text} texts, ${ch.email} emails">${chip('text', ch.text, 'text')}${chip('email', ch.email, 'email')}</span></span>
         <span class="plast"${la ? ` title="${esc(la.t)}, ${esc(fmtDay(la.at))}"` : ''}>${la ? `<time>${esc(fmtDay(la.at))}</time>` + esc(st === 'inspection' && RC.booking(h.id) ? la.t.replace(/^(Inspection booked) for .*$/, '$1') : la.t) : 'No action yet'}</span>
         <span class="pnext"><em>Next</em>${esc(nextStep(h, st))}</span></button>
@@ -173,7 +173,7 @@
     </article>`;
   }
   const sqText = l => { const k = l.filter(h => squares(h) != null), t = Math.round(k.reduce((a, h) => a + squares(h), 0) * 10) / 10;
-    return { t: k.length ? t.toLocaleString('en-US') + ' sq' : l.length ? 'Not measured' : '', tip: k.length ? `${t} measured squares in this stage${k.length < l.length ? ', ' + (l.length - k.length) + ' not measured yet' : ''}. No prices set, so squares only.` : '' }; };
+    return { t: k.length ? '~' + t.toLocaleString('en-US') + ' sq (est.)' : l.length ? 'Not estimated' : '', tip: k.length ? `~${t} estimated squares in this stage${k.length < l.length ? ', ' + (l.length - k.length) + ' not estimated yet' : ''}. Estimated from public building outlines and 2018 LiDAR. Verify on site. No prices set, so squares only.` : '' }; };
   function sortList(l) {
     const rec = h => { const la = lastAction(h.id); return la ? la.at : stageSince(h.id) || ''; };
     if (view.sort === 'hail') return l.sort((a, b) => (b.hail == null ? -1 : b.hail) - (a.hail == null ? -1 : a.hail) || (a.stop || 999) - (b.stop || 999));

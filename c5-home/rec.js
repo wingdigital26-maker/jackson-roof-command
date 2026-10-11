@@ -325,7 +325,7 @@
     else if (st === 'called') t = { due: 'Next follow-up', h: 'Follow up by text or email and book the inspection', why: esc((hist[0] || {}).what || 'Contacted') + '.', alt: 'Book' };
     else if (st === 'inspection') t = { due: b ? RC.when(b) : 'Not booked yet', h: 'Inspect the roof', why: 'Walk the slopes that faced the storm, photos of every hail mark, check the ridge caps.', done: 'Inspection done', alt: 'Reschedule' };
     else if (st === 'proposal') t = { due: 'Today, ' + RC.textWindow().today, h: 'Follow up on the proposal. Ask if they want to walk through it.', why: 'Sent after the inspection. No price promises by text.', alt: 'Reschedule' };
-    else t = { due: 'Signed', h: 'Schedule the install', why: 'Order materials from the measured squares plus waste.', alt: 'Reschedule' };
+    else t = { due: 'Signed', h: 'Schedule the install', why: 'Order materials from the estimated squares plus waste, after a site check.', alt: 'Reschedule' };
     $('#next').innerHTML = `<div class="nh"><span class="pill soft">Next task</span><span class="due">${ic('clock')}${esc(t.due)}</span></div><h4>${t.h}</h4><p class="why">${t.why}</p>
       <div class="row"><button type="button" id="tDone">Done</button><button type="button" data-act="book">${t.alt}</button></div>${st === 'inspection' && b ? `<button type="button" class="calx" id="tCal">${ic('cal')}Add to calendar<small>.ics file</small></button>` : ''}`;
     const tc = $('#tCal'); if (tc) tc.onclick = () => { if (icsFile(id)) say('Calendar file saved. Open it to add the inspection to your calendar.'); };
@@ -342,9 +342,9 @@
       const sq = M ? M.squares : rec.sq, waste = M ? M.waste : 15, order = sq ? Math.round(sq * (1 + waste / 100) * 10) / 10 : null;
       pb.innerHTML = `<div class="ph"><h3>Proposal</h3><span class="pill">Sent, sample</span></div>
         <div class="kv pk"><div><span>Scope</span><b>Full replacement, architectural shingle</b></div>
-        <div><span>Measured</span><b>${sq != null ? sq + ' squares' : 'Not measured'}</b></div>
+        <div><span>${M && M.drawn ? 'Drawn by you' : 'Estimated'}</span><b title="Estimated from public building outlines and 2018 LiDAR. Verify on site.">${sq != null ? '~' + sq + ' sq (est.)' + (M && M.drawn && !M.pitchMeasured ? ', pitch estimated' : '') : 'Not estimated'}</b></div>
         <div><span>Waste</span><b>${waste}%, from the hips and valleys</b></div>
-        <div><span>Order</span><b>${order != null ? order + ' squares' : 'After measuring'}</b></div>
+        <div><span>Order</span><b>${order != null ? '~' + order + ' sq (est.)' : 'After the site check'}</b></div>
         <div><span>Insurance</span><b>Adjuster meeting if the owner files</b></div></div>
         <p class="note">Quantities come from the drawing. Price, claim amounts and deductibles are set with the homeowner, never promised here.</p>`;
     }

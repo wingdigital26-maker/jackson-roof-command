@@ -187,7 +187,8 @@ body:not(.fresh) .hello{display:none}
   .primary{padding:15px 20px;text-align:center}
   .ghost{text-align:center;padding:13px 16px}
   .chips{margin:14px 0 0}
-  .dock{display:block;flex:none;padding:8px 16px calc(10px + env(safe-area-inset-bottom));background:var(--panel)}
+  /* the composer ends left of Nimbus (52px orb, 20px in, fixed bottom right; he never moves), so Send is never under him */
+  .dock{display:block;flex:none;padding:8px 84px calc(10px + env(safe-area-inset-bottom)) 16px;background:var(--panel)}
   .composer{min-height:52px}
   .composer input{min-height:44px;font-size:16px}
   .send{width:44px;height:44px}

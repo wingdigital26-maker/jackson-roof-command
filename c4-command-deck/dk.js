@@ -159,7 +159,7 @@
     }
     function showTip(id, x, y) {
       const p = byId(id); if (!p) return;
-      tip.innerHTML = `<b>${p.name}</b><span>${p.rise}/12 pitch</span><span>${p.area.toLocaleString()} sq ft</span><span class="sq">${p.squares} squares</span>${p.hit ? '<span class="hit">Hail marks</span>' : ''}`;
+      tip.innerHTML = `<b>${p.name}</b><span>Pitch est. ${p.rise}/12</span><span>~${p.area.toLocaleString()} sq ft</span><span class="sq">~${p.squares} sq (est.)</span>${p.hit ? '<span class="hit">Hail marks</span>' : ''}`;
       tip.hidden = false; const r = el.getBoundingClientRect(); const tx = Math.min(r.width - tip.offsetWidth - 10, Math.max(10, x - r.left + 14)); const ty = Math.max(10, y - r.top - tip.offsetHeight - 14);
       tip.style.transform = `translate(${tx}px, ${ty}px)`;
     }
@@ -219,7 +219,7 @@
       const o = w.phHTML;
       w.phHTML = function (h) {
         const html = o.apply(this, arguments); if (!h || !h.spec) return html;
-        const txt = h.spec.loading ? 'Loading the outline' : h.spec.none ? 'No outline on file' : `${h.sq} sq<i>${h.M && h.M.facets ? h.M.facets + ' planes, ' : ''}red took the hail</i>`;
+        const txt = h.spec.loading ? 'Loading the outline' : h.spec.none ? 'No outline on file' : `~${h.sq} sq (est.)<i>${h.M && h.M.facets ? h.M.facets + ' planes, ' : ''}red took the hail</i>`;
         return html.replace(/(<div class="bl"><span class="sw"><\/span>)[\s\S]*?(<\/div>)/, (m, a, b) => a + txt + b);
       };
     }

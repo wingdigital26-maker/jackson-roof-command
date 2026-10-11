@@ -263,7 +263,7 @@
     if (chh.__h !== head) { chh.innerHTML = head; chh.__h = head; }
     const roof = h.roofAge || (h.year ? 'Built ' + h.year : mine ? 'Checking the county record' : 'Not on file');
     const permit = h.permit ? 'Reroof permit ' + String(h.permit).slice(0, 4) : 'No reroof permit on file';
-    const sq = h.sq != null ? h.sq + ' sq' : mine && H.measure === null ? 'No outline on file' : 'Measuring';
+    const sq = h.sq != null ? '~' + h.sq + ' sq (est.)' : mine && H.measure === null ? 'No outline on file' : 'Measuring';
     const pitch = h.pitch ? h.pitch : (mine && H.measure === null ? 'No outline' : 'Measuring');
     const strip = RC.STAGES.map((s, i) => `<button type="button" class="cst${i < idx ? ' dn' : ''}${i === idx && !arch ? ' on' : ''}" data-s="${s[0]}" aria-current="${i === idx ? 'step' : 'false'}"><span class="d">${i < idx ? ICON.check : i + 1}</span><b>${esc(s[1])}</b></button>`).join('');
     // direction A: three big numbers (hail, roof year, pitch), then the facts as rows, the stage strip and Book
@@ -271,11 +271,11 @@
       `<div class="ckpi">` +
       `<div><span>Hail here</span>${h.hail != null ? `<b>${h.hail.toFixed(2)} in</b><small>${esc(h.hailDate)} radar</small>` : '<b class="sm">Not on file</b>'}</div>` +
       `<div><span>Roof</span>${h.year ? `<b>${esc(String(h.year))}</b><small>${esc(permit.replace('on file', '').trim())}</small>` : `<b class="sm">${esc(roof)}</b><small>${esc(permit)}</small>`}</div>` +
-      `<div><span>Pitch</span><b${/^\d+\/\d+$/.test(String(pitch)) ? '' : ' class="sm"'}>${esc(String(pitch))}</b><small>${h.pitch ? 'LiDAR' : ''}</small></div></div>` +
+      `<div><span>Pitch est.</span><b${/^\d+\/\d+$/.test(String(pitch)) ? '' : ' class="sm"'}>${esc(String(pitch))}</b><small title="Estimated from public building outlines and 2018 LiDAR. Verify on site.">${h.pitch ? 'LiDAR estimate' : ''}</small></div></div>` +
       `<div class="cfg">` +
       `<div><span>Owner</span><b>${OWNDATA ? (h.owner ? esc(h.owner) + (h.homestead ? ', homestead' : '') : RC.OWNER_NONE) : 'Owner name not available'}</b></div>` +
       (RC.tracedRows ? RC.tracedRows(h.addr, h.zip) : '') +
-      `<div><span>Squares</span><b>${esc(String(sq))}${h.sq != null ? ', from the outline' : ''}</b></div>` +
+      `<div><span>Squares est.</span><b title="Estimated from public building outlines and 2018 LiDAR. Verify on site.">${esc(String(sq))}${h.sq != null ? ', from the outline' : ''}</b></div>` +
       `<div><span>Texts</span><b>${h.past ? 'Past customer' : h.optin ? 'Opted in' : RC.optedOut(id) ? 'Opted out' : 'Not yet opted in'}</b></div></div>` +
       `<div class="cstrip" role="group" aria-label="Stage">${strip}</div>${arch ? '<p class="cnote">Parked in Not now on the Pipeline.</p>' : ''}` +
       `<div class="cact book">${b ? `<p class="cnote"><span class="ic">${ICON.cal}</span>Inspection ${esc(RC.when(b))}</p><button type="button" class="cbtn" data-a="ics"><span class="ic">${ICON.cal}</span>Add to calendar</button><button type="button" class="cbtn pri" data-a="book">Reschedule</button>` : `<span></span><button type="button" class="cbtn pri" data-a="book"><span class="ic">${ICON.cal}</span>Book inspection</button>`}</div>`;

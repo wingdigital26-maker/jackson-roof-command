@@ -12,6 +12,7 @@
   var HOLD = qs.has('hold');
   var BEAT = qs.get('beat');
   var SHORT = qs.get('short') === '1';
+  var WAIT = qs.get('wait') === '1';   /* first open: this is the loading screen. After the beats, hold (piece idling, hail falling) until the shell says Today is ready */
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var docEl = document.documentElement;
   var NEXT = 'product.html#/daily';
@@ -88,13 +89,36 @@
     current = el;
     setTimeout(function(){ el.classList.add('in'); window.__beat = name; }, current ? 320 : 0);
     if(BEAT || HOLD) return;
-    if(name === 'info') setTimeout(function(){ STORM ? showBeat('storm') : end(); }, SHORT ? (STORM ? 1200 : 1500) : (STORM ? 1300 : 1600));
-    else setTimeout(end, SHORT ? 2400 : 3400);
+    if(name === 'info') setTimeout(function(){ STORM ? showBeat('storm') : beatsOver(); }, SHORT ? (STORM ? 1200 : 1500) : (STORM ? 1300 : 1600));
+    else setTimeout(beatsOver, SHORT ? 2400 : 3400);
   }
+
+  /* ---------- the hold (?wait=1): the beats are over, Today may still be getting ready ----------
+     The shell posts {type:'intro-stage'} as Today's map, cards and lines land, then {type:'intro-go'} when it is ready
+     (or at its own cap). The cue appears only if the wait outlives the beats by a moment, so a fast load never shows it.
+     The intro never ends early for a ready signal: the beats always play out. A key or click still skips. */
+  var goAsked = !WAIT, beatsDone = false, cueT = null;
+  var STAGE = {map:'Drawing the map', cards:'Building today’s list', lines:'Lines ready', ready:'Opening today'};
+  function cue(text){
+    var t = document.getElementById('load-t'); if(!t || t.textContent === text) return;
+    t.classList.add('swap'); setTimeout(function(){ t.textContent = text; t.classList.remove('swap'); }, reduced ? 0 : 300);
+  }
+  function beatsOver(){
+    beatsDone = true;
+    if(goAsked){ end(); return; }
+    cueT = setTimeout(function(){ if(!ended && !goAsked) docEl.classList.add('loading'); }, 600);
+    setTimeout(function(){ if(!ended) end(); }, 14000);   /* the shell has its own cap (12 s); this is the floor under it */
+  }
+  if(WAIT) addEventListener('message', function(e){
+    if(e.origin !== location.origin) return; var d = e.data || {};
+    if(d.type === 'intro-stage'){ if(STAGE[d.stage]) cue(STAGE[d.stage]); return; }
+    if(d.type === 'intro-go'){ goAsked = true; cue(STAGE.ready); if(beatsDone && !ended){ clearTimeout(cueT); setTimeout(end, docEl.classList.contains('loading') ? 350 : 0); } }
+  });
 
   /* ---------- end: hand off to Today ---------- */
   function end(){
     if(ended) return; ended = true;
+    clearTimeout(cueT); docEl.classList.remove('loading');
     document.body.classList.add('go');
     try{ sessionStorage.setItem('rc.introSeen', '1'); }catch(e){}
     try{ window.parent.postMessage({type:'intro-done'}, '*'); }catch(e){}

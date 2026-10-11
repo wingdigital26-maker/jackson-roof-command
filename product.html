@@ -148,7 +148,7 @@ function srcFor(screen,params){
   if(screen==='daily'&&params.n) p.set('n',params.n);
   if(screen==='home'){ if(params.id) p.set('home',params.id); if(params.view) p.set('view',params.view); }
   if(screen==='ask'&&params.q) p.set('q',params.q);
-  if(screen==='opening'){ if(params.about) p.set('about','1'); else p.set('short','1'); }
+  if(screen==='opening'){ if(params.about) p.set('about','1'); else { p.set('short','1'); if(LOADING.on) p.set('wait','1'); } }   // wait: the first open holds for Today (startLoading)
   const qs=p.toString();
   return s.page+(qs?'?'+qs:'');
 }
@@ -167,7 +167,7 @@ function frameFor(screen){
   stage.appendChild(el);
   fr=frames[screen]={el,src:'',loaded:false,routeAck:null};
   el.addEventListener('load',()=>{ fr.loaded=true; if(cur===screen){ window.__switch.last=Math.round(performance.now()-(window.__switch.t0||performance.now())); settle(screen); }
-    else setTimeout(()=>{ if(cur!==screen){ el.classList.add('parked'); tell(fr,{type:'visibility',hidden:true}); } },2500); });   // a prefetched frame sizes itself first, then parks
+    else if(!fr.held) setTimeout(()=>{ if(cur!==screen&&!fr.held){ el.classList.add('parked'); tell(fr,{type:'visibility',hidden:true}); } },2500); });   // a prefetched frame sizes itself first, then parks (a held frame keeps painting under the opening)
   return fr;
 }
 function load(fr,src){
@@ -204,7 +204,8 @@ function render(){
   /* website-style transition: outgoing fades, incoming rises 16 px */
   if(prev&&prev!==screen&&frames[prev]){ const o=frames[prev].el; o.classList.remove('on'); o.classList.add('out'); tell(frames[prev],{type:'visibility',hidden:true});
     setTimeout(()=>{ o.classList.remove('out'); if(cur!==prev) o.classList.add('parked'); },reduced?0:320); }
-  Object.keys(frames).forEach(k=>{ if(k!==screen){ frames[k].el.classList.remove('on'); if(k!==prev) frames[k].el.classList.add('parked'); } });
+  Object.keys(frames).forEach(k=>{ if(k!==screen){ frames[k].el.classList.remove('on'); if(k!==prev&&!frames[k].held) frames[k].el.classList.add('parked'); } });
+  if(fr.held){ fr.held=false; delete fr.el.dataset.hold; }   // the frame that loaded under the opening is now the screen
   fr.el.classList.remove('parked'); void fr.el.offsetWidth; fr.el.classList.add('on');   // reflow first so a brand-new frame still rises in
   tell(fr,{type:'visibility',hidden:false});
   if(fr.loaded&&src===fr.src){ window.__switch.last=Math.round(performance.now()-(window.__switch.t0||performance.now())); settle(screen); }
@@ -228,7 +229,9 @@ function settle(screen){
   const t0=performance.now();
   const tryPrefetch=()=>{ if(cur!==screen||frames[next]) return; if(!mapDone()&&performance.now()-t0<12000){ setTimeout(tryPrefetch,500); return; }
     idle(()=>{ if(cur!==screen||frames[next]) return; const fr=frameFor(next); load(fr,srcFor(next,{})); }); };
-  setTimeout(tryPrefetch,1500);
+  /* Today's first reveal draws the fan of lines for about 6 s: the CRM prefetch (three.js) waits until that is over */
+  const first=screen==='daily'&&!frames[screen].warmed; frames[screen].warmed=true;
+  setTimeout(tryPrefetch,first?6500:1500);
 }
 const idle=f=>window.requestIdleCallback?requestIdleCallback(f,{timeout:4000}):setTimeout(f,0);
 addEventListener('hashchange',render);
@@ -239,12 +242,32 @@ function sayBrief(){ pendingBrief=false; setTimeout(()=>Nimbus.say(Nimbus.brief(
 function onIntroDone(){
   if(cur!=='opening') return;
   ss.set('rc.introSeen','1');
+  clearTimeout(LOADING.cap); LOADING.on=false; LOADING.hand=Math.round(performance.now()-LOADING.t0); window.__handAbs=performance.timeOrigin+performance.now();
   go('daily',{},true);
   if(!Nimbus.isArrived()) Nimbus.arrive(null);
   if(!briefed){ briefed=true; const fr=frames.daily; if(fr&&fr.loaded) sayBrief(); else pendingBrief=true; }   // the brief states the real queue, so it waits for the Daily 50
 }
+/* the opening is the loading screen (Jack 10-11): on the first open Today loads underneath it, held (opacity 0, never
+   parked, data-hold so its lines wait). The opening plays its beats, then idles until Today says it is ready (map style
+   and first tiles drawn, Daily 50 built, cards painted, lines mounted) or 12 s pass, then it hands off: the opening
+   fades, Today rises, the lines draw. A key or click on the opening skips straight to whatever is on screen. */
+const LOADING={on:false,cap:0,t0:0,ready:0};
+window.__loading=LOADING;   // the headless check reads the measured ready time here
+function startLoading(){
+  LOADING.on=true; LOADING.t0=performance.now();
+  go('opening',{wait:1},true);
+  const fr=frameFor('daily'); fr.held=true; fr.el.dataset.hold='1'; load(fr,srcFor('daily',{}));
+  LOADING.cap=setTimeout(()=>release('cap'),12000);
+}
+function release(why){
+  if(!LOADING.on) return; clearTimeout(LOADING.cap);
+  LOADING.ready=Math.round(performance.now()-LOADING.t0); LOADING.why=why;
+  const fr=frames.opening; if(fr) tell(fr,{type:'intro-go'});
+}
 addEventListener('message',e=>{ if(e.origin!==location.origin) return; const d=e.data||{};
   if(d.type==='intro-done') onIntroDone();
+  else if(d.type==='today-ready'){ if(LOADING.on) release(d.why||'ready'); }
+  else if(d.type==='today-stage'){ if(LOADING.on&&frames.opening) tell(frames.opening,{type:'intro-stage',stage:d.stage}); }
   else if(d.type==='routed'){ Object.values(frames).forEach(fr=>{ if(fr.routeAck===d.token) fr.routeAck=null; }); }
   else if(d.type==='route'&&screens[d.screen]) syncRoute(d.screen,d.params||{});
   else if(d.type==='go'&&screens[d.screen]) go(d.screen,d.params||{});
@@ -289,7 +312,7 @@ RCT_AUTH.gate(function start(){
   if(tab&&screens[tab]&&!location.hash){ go(tab,tab==='opening'?{about:'1'}:{},true); return; }
   if(location.hash&&parseHash(location.hash)){ const r=parseHash(location.hash); if(r.screen==='opening'&&!r.params.about&&(NOINTRO||ss.get('rc.introSeen'))){ go('daily',{},true); return; } render(); return; }
   if(NOINTRO||ss.get('rc.introSeen')){ go('daily',{},true); return; }
-  go('opening',{},true);
+  startLoading();
 });
 </script>
 <script>/* offline cache (sw.js): repeat visits and tab switches load from disk. Registered after the first screen is up; ?nosw=1 removes it. */
