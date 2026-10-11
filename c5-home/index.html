@@ -6,6 +6,8 @@
 <title>Roof Command</title>
 <link rel="stylesheet" href="home.css">
 <link rel="stylesheet" href="crm.css">
+<link rel="stylesheet" href="features.css">
+<link rel="stylesheet" href="../lib/rc-physical.css">
 <script type="importmap">
 {"imports":{
   "three":"../vendor/three@0.170.0/build/three.module.min.js",
@@ -113,6 +115,7 @@
       <div id="focus"></div>
       <div class="tabs" role="tablist" aria-label="Record" id="tabs">
         <button type="button" class="on" data-t="meas" role="tab" aria-selected="true">Measurements</button>
+        <button type="button" data-t="report" role="tab" aria-selected="false">Roof report</button>
         <button type="button" data-t="act" role="tab" aria-selected="false">Activity<i id="actN">0</i></button>
         <button type="button" data-t="notes" role="tab" aria-selected="false">Notes<i id="noteN">0</i></button>
         <button type="button" data-t="contact" role="tab" aria-selected="false">Contact</button>
@@ -120,6 +123,9 @@
       <div class="tab on" data-t="meas">
         <div class="tablewrap"><table id="table"></table></div>
         <p class="note" id="measNote">Estimated from the drawing, sample. Plane area is plan area times the pitch factor, squares are area over 100. Estimated from public building outlines and 2018 LiDAR. Verify on site. A field measurement replaces these before the proposal.</p>
+      </div>
+      <div class="tab" data-t="report">
+        <div class="report" id="report" aria-live="polite"></div>
       </div>
       <div class="tab" data-t="act">
         <div class="afil" id="afil" role="group" aria-label="Show">
@@ -158,6 +164,7 @@
 <script src="../lib/rc-traced.js" onerror="this.remove()"></script><!-- git-ignored; written by scripts/leads/tracerfy.py, absent = nothing shown -->
 <script src="../lib/rc-traced-ui.js"></script>
 <script>/* the roofer brands the page (lib/brand.js) */ applyRoofer(rooferKey()); document.documentElement.style.setProperty('--accent-hi', activeRoofer().accentHi || activeRoofer().accent);</script>
+<script src="../lib/rc-roof.js"></script><!-- per-facet LiDAR roof record + report (stories chip, Roof report tab) -->
 <script src="../lib/st-meta.js"></script>
 <script src="../c4-command-deck/data/routes-dfw.js"></script>
 <script src="../lib/rc-queue.js"></script>
@@ -167,6 +174,8 @@
 <script src="pipe.js"></script>
 <script src="crm.js"></script>
 <script src="../lib/rc-automation.js"></script>
+<script src="../lib/rc-features.js"></script><!-- kept features switchboard (10-11) -->
+<script src="features.js"></script><!-- roof-build stamp, odometer counts -->
 <script type="module" src="home.js"></script>
 </body>
 </html>

@@ -7,6 +7,8 @@
 <link rel="preload" href="fonts/instrument-sans-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../vendor/maplibre-gl@4.7.1/maplibre-gl.css">
 <link rel="stylesheet" href="dk.css">
+<link rel="stylesheet" href="features.css">
+<link rel="stylesheet" href="../lib/rc-physical.css">
 <script>try{ if (window.self !== window.top) document.documentElement.classList.add('embed'); }catch(e){ document.documentElement.classList.add('embed'); }</script>
 <style>
 .app{--g:28px;height:100vh;height:100dvh;display:grid;grid-template-rows:64px auto minmax(0,1fr);overflow:hidden}
@@ -1569,5 +1571,8 @@ addEventListener('keydown', e=>{ if (e.key==='Escape' && document.documentElemen
 if (DK.param('sheet')==='route') setTimeout(()=>openSheet('route'),300);
 if (DK.param('sheet')==='roof') setTimeout(()=>openRoof(HOMES[cur]),300);
 </script>
+<!-- kept features (10-11), switches in lib/rc-features.js: time-of-day light, mission briefing, new storm takeover -->
+<script src="../lib/rc-features.js"></script>
+<script src="features.js"></script>
 </body>
 </html>

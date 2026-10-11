@@ -32,7 +32,12 @@ document.querySelectorAll('[data-i]').forEach(n => { n.innerHTML = I[n.dataset.i
 
 // ---------- geometry (scene units; SCALE feet per unit) ----------
 const SCALE = 2.8;
-const E = 3.0, EG = 2.8, RISE = 2.5; // main eave height, garage eave height, main ridge rise (6/12 over a 5 unit run)
+const E1 = 3.0, EG = 2.8, RISE = 2.5; // one-story eave height, garage eave height, main ridge rise (6/12 over a 5 unit run)
+// the eave height the house is built to: one story by default; a LiDAR story count (lib/rc-roof.js, about 9.5 ft a story)
+// raises it so a 2-story home stands two stories tall. Set by computeRoof() before anything is built.
+let E = E1, STORIES = 1;
+const STORY_U = 9.5 / 2.8;   // one story in scene units (SCALE below is 2.8 ft a unit)
+function storyEave(h) { const n = window.RCROOF && h && h.roof ? (RCROOF.stories(h.roof) || {}).n : 0; STORIES = n >= 1 ? n : 1; return n >= 2 ? E1 + (n - 1) * STORY_U : E1; }
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 // Edge types per plane follow the point order: edge i runs pts[i] -> pts[i+1].
 // Texas data (lib/brand.js dataRoot) with no LiDAR pitch: the headline says "not measured", never a bare 6/12
@@ -93,7 +98,7 @@ function preloadMap(h) {
 }
 await preloadMap(window.HOME);
 function computeRoof() {
-H0 = window.HOME || {}; DEFAULT_HOUSE = false; SPEC = realSpecFor(H0); NONE = !!(SPEC && SPEC.none);
+H0 = window.HOME || {}; DEFAULT_HOUSE = false; E = storyEave(H0); SPEC = realSpecFor(H0); NONE = !!(SPEC && SPEC.none);
 HAIL = { size: H0.hail != null ? H0.hail.toFixed(2) + ' in' : 'No hail on file', date: H0.hailDate || ((window.RC && RC.facts.storm.d) || '') };
 PLANES = defaultPlanes(); CAPS = defaultCaps(); FP = null; SPEC_INFO = null;
 if (NONE) { PLANES = []; CAPS = []; }
@@ -146,7 +151,7 @@ if (SPEC && SPEC.real && SPEC.squares != null) M.squares = SPEC.squares; // real
 if (NONE) { M.pitch = ''; M.waste = 0; M.edgeTotals = {}; if (window.HOME) { window.HOME.measure = null; if (window.renderRecord) window.renderRecord(); } return; }
 { const by = {}; PLANES.forEach(P => by[P.rise] = (by[P.rise] || 0) + P.m.area); M.pitch = Object.entries(by).sort((a, b) => b[1] - a[1])[0][0] + '/12'; }
 { const ty = PLANES.flatMap(P => P.types); const cx = ty.filter(t => t === 'hip').length / 2 + ty.filter(t => t === 'valley').length; M.waste = cx === 0 ? 10 : cx <= 4 ? 12 : cx <= 8 ? 15 : 18; }
-if (window.HOME) { window.HOME.measure = { squares: M.squares, waste: M.waste, pitch: M.pitch, drawn: !!(SPEC && SPEC.drawn), pitchMeasured: !!(SPEC && SPEC.pitchMeasured) }; if (window.renderRecord) window.renderRecord(); }
+if (window.HOME) { window.HOME.measure = { facet: !!(SPEC && SPEC.facet), squares: M.squares, waste: M.waste, pitch: M.pitch, drawn: !!(SPEC && SPEC.drawn), pitchMeasured: !!(SPEC && SPEC.pitchMeasured) }; if (window.renderRecord) window.renderRecord(); }
 }
 // angle of the footprint's minimum-area bounding rectangle, folded into [-45, 45] deg (convex hull, one try per hull edge)
 function squareAngle(pts) {
@@ -249,7 +254,7 @@ function buildSpecHouse() {
   // windows and the front door, by rule: sill and head from the wall height (head kept clear of the eave), even spacing
   // along each wall with end margins, walls too short skipped; each one set on its wall plane facing out (any angle)
   const inside = (x, z) => pointInPoly({ x, y: z }, FP.map(p => ({ x: p.x, y: p.z })));
-  const SILL = E * .34, HEAD = E * .78, WW = 1.3, FR = .09, END = 1.1, GAP = 3.1;  // units (2.8 ft): sill ~2.9 ft, head ~6.6 ft, eave clear ~1.6 ft
+  const SILL = E1 * .34, HEAD = E1 * .78, WW = 1.3, FR = .09, END = 1.1, GAP = 3.1;  // units (2.8 ft) per story: sill ~2.9 ft, head ~6.6 ft, eave clear ~1.6 ft
   const walls = FP.map((a, i) => {
     const b = FP[(i + 1) % FP.length], L = a.distanceTo(b), along = b.clone().sub(a).normalize();
     let n = V(along.z, 0, -along.x); const mid = a.clone().add(b).multiplyScalar(.5);
@@ -260,11 +265,12 @@ function buildSpecHouse() {
   // the door: middle of the longest wall that faces the street side of the view (+z)
   const front = walls.filter(w => w.n.z > .7 && w.L >= 4).sort((p, q) => q.L - p.L)[0];
   if (front) { let c = front.cnt; if (c % 2 === 0) c = front.usable / (c + 1) >= WW + 1.6 ? c + 1 : Math.max(1, c - 1); front.cnt = c; front.door = (c - 1) / 2; }
+  // one row of windows per LiDAR story (STORIES, computeRoof); the door only on the ground floor
   walls.forEach(w => {
-    for (let k = 0; k < w.cnt; k++) {
+    for (let s = 0; s < STORIES; s++) for (let k = 0; k < w.cnt; k++) {
       const p = w.a.clone().addScaledVector(w.along, END + w.usable * (k + .5) / w.cnt);
-      const g = new THREE.Group(); g.position.set(p.x, 0, p.z); g.rotation.y = Math.atan2(w.n.x, w.n.z); house.add(g);
-      if (w.door === k) doorAt(g); else windowAt(g);
+      const g = new THREE.Group(); g.position.set(p.x, s * STORY_U, p.z); g.rotation.y = Math.atan2(w.n.x, w.n.z); house.add(g);
+      if (w.door === k && s === 0) doorAt(g); else windowAt(g);
     }
   });
   function part(g, w, h, d, x, y, z, mat, shadow) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.castShadow = !!shadow; m.receiveShadow = true; g.add(m); return m; }
@@ -436,10 +442,44 @@ function build() {
   activeIdx = -1; hoverIdx = -1; explodeTarget = 0; explodeT = 0; frames = 0; stage.classList.remove('focused');
   bExplode.classList.remove('on'); bExplode.textContent = 'Explode';
   const pitchTxt = SPEC && SPEC.drawn ? (SPEC.pitchMeasured ? 'pitch est. ' + M.pitch : 'pitch estimated') : pitchGap() ? 'pitch est. (no LiDAR)' : 'pitch est. ' + M.pitch;
-  document.getElementById('titleH').title = 'Estimated from public building outlines and 2018 LiDAR. Verify on site.'; document.getElementById('titleH').textContent = NONE ? 'Outline not on file yet' : `~${M.squares} sq (est.), ${SPEC_INFO ? SPEC_INFO.style : 'hip roof'}, ${pitchTxt}`;
+  document.getElementById('titleH').title = window.RealRoof ? RealRoof.tip(SPEC) : 'Estimated from public building outlines and 2018 LiDAR. Verify on site.'; document.getElementById('titleH').textContent = NONE ? 'Outline not on file yet' : `~${M.squares} sq (est.), ${SPEC_INFO ? SPEC_INFO.style : 'hip roof'}, ${pitchTxt}`;
   document.getElementById('titleP').textContent = NONE ? 'The public building maps have no outline for this home yet, so there are no squares to show. This is the parcel from above.'
-    : `${SPEC.label}${DEFAULT_HOUSE ? " (stop 1 on today's route)" : ''}. Drag to turn it, click a plane to measure it.`;
+    : `${(SPEC && SPEC.label) || 'Roof drawn from the building outline'}${DEFAULT_HOUSE ? " (stop 1 on today's route)" : ''}. Drag to turn it, click a plane to measure it.`;
   showNone(); renderTag();
+  startIntro();
+}
+
+// ---------- the roof builds itself (kept trial, switch RC_FEATURES.roofBuild) ----------
+// walls rise from the plinth, then the planes drop onto them in order, the ridge caps last, about 1.2 s in all.
+// Off under prefers-reduced-motion and when the switch is off; either way the stage announces rc:roofbuilt with the
+// home's real estimated numbers so the stamp (features.js) can label the finished roof.
+let intro = null;
+const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const INTRO_MS = Math.max(300, +(new URLSearchParams(location.search).get('buildms')) || 1200);   // ?buildms=8000: slow build for screenshots
+const easeOut = t => 1 - Math.pow(1 - Math.max(0, Math.min(1, t)), 3);
+function introOn() { return !!(window.RC_FEATURES && RC_FEATURES.roofBuild) && !REDUCE && !NONE && planeGroups.length > 0; }
+function builtInfo() {
+  return { none: NONE, facet: !!(SPEC && SPEC.facet), squares: M.squares, pitch: M.pitch, pitchMeasured: !!(SPEC && SPEC.pitchMeasured), pitchGap: pitchGap(), planes: PLANES.length,
+    hail: H0.hail != null ? +H0.hail : null, hailDate: HAIL.date, label: SPEC && SPEC.label || '', real: !!(SPEC && SPEC.real), drawn: !!(SPEC && SPEC.drawn), id: H0.rawId || '' };
+}
+function startIntro() {
+  if (!introOn()) { intro = null; if (house) house.scale.y = 1; planeGroups.forEach(pg => { pg.g.visible = true; pg.introK = 1; }); stage.classList.remove('building'); setTimeout(() => stage.dispatchEvent(new CustomEvent('rc:roofbuilt', { detail: Object.assign(builtInfo(), { animated: false }) })), 60); return; }
+  intro = { start: performance.now(), dur: INTRO_MS };
+  house.scale.y = .001; planeGroups.forEach(pg => { pg.g.visible = false; pg.introK = 0; }); capMat.opacity = 0; caps.visible = false;
+  stage.classList.add('building');
+}
+function introStep(now) {
+  if (!intro) return 1;
+  const k = (now - intro.start) / intro.dur;
+  const n = planeGroups.length, span = .42, per = n > 1 ? .22 / (n - 1) : 0;
+  house.scale.y = Math.max(.001, easeOut(k / .36));
+  planeGroups.forEach((pg, i) => {
+    const ti = (k - .3 - i * per) / span, e = easeOut(ti);
+    pg.g.visible = ti > 0;
+    pg.introK = e;   // frame() lifts the plane by (1 - introK) so it drops onto the walls
+  });
+  if (k >= 1) { intro = null; house.scale.y = 1; planeGroups.forEach(pg => { pg.g.visible = true; pg.introK = 1; }); stage.classList.remove('building'); stage.dispatchEvent(new CustomEvent('rc:roofbuilt', { detail: Object.assign(builtInfo(), { animated: true }) })); return 1; }
+  return k;
 }
 // the home's position (lon, lat): the record's, else homes.bin by its index (a record opened cold by id)
 function homePos() {
@@ -556,7 +596,7 @@ function resetView() {
 function planeHTML(pg) {
   const m = pg.P.m, P = pg.P;
   return `<div class="fx${P.hit ? ' hit' : ''}"><div class="fh"><i>${P.id}</i><div><b>${P.name}</b><small>Pitch est. ${P.rise}/12, pitch factor ${m.factor.toFixed(3)}</small></div></div>
-    <div class="big" title="Estimated from public building outlines and 2018 LiDAR. Verify on site.">~${m.squares.toFixed(1)}<i>squares (est.)</i></div>
+    <div class="big" title="${window.RealRoof ? RealRoof.tip(SPEC) : 'Estimated from public building outlines and 2018 LiDAR. Verify on site.'}">~${m.squares.toFixed(1)}<i>squares (est.)</i></div>
     <div class="line">${m.area.toLocaleString()} sq ft of roof from ${m.plan.toLocaleString()} sq ft of plan at ${P.rise}/12. ${Math.round(m.area / M.area * 100)}% of the roof.</div>
     <div class="edges">${m.edges.map(e => `<div><i style="background:${EDGE_COL[e.type]}"></i>${EDGE_LABEL[e.type]}<b>${e.ft} ft</b></div>`).join('')}</div>
     ${P.hit ? `<div class="hailline"><span class="ic">${I.hail}</span>${HAIL.size} hail ${HAIL.date}, ${pg.hits} marks${P.hit === 'heavy' ? ', faced the storm' : ', glancing side'}</div>` : ''}
@@ -568,7 +608,7 @@ function renderPanel() {
   measPill.textContent = A ? A.P.name : 'Whole roof';
   const first = !focusEl.innerHTML; focusEl.className = 'focus'; if (!first) { void focusEl.offsetWidth; focusEl.classList.add('in'); }
   if (NONE) { focusEl.innerHTML = `<div class="tot"><div><small>Roof</small><b style="font-size:16px">Outline not on file yet</b></div></div>`; tableEl.innerHTML = ''; return; }
-  focusEl.innerHTML = A ? planeHTML(A) : `<div class="tot"><div><small>Total</small><b title="Estimated from public building outlines and 2018 LiDAR. Verify on site.">~${M.squares}<i>sq (est.)</i></b></div><div><small>Pitch est.</small><b>${pitchGap() ? 'No LiDAR' : M.pitch}</b></div><div><small>Planes</small><b>${M.planes.length}</b></div></div>`;
+  focusEl.innerHTML = A ? planeHTML(A) : `<div class="tot"><div><small>Total</small><b title="${window.RealRoof ? RealRoof.tip(SPEC) : 'Estimated from public building outlines and 2018 LiDAR. Verify on site.'}">~${M.squares}<i>sq (est.)</i></b></div><div><small>Pitch est.</small><b>${pitchGap() ? 'No LiDAR' : M.pitch}</b></div><div><small>Planes</small><b>${M.planes.length}</b></div></div>`;
   tableEl.innerHTML = `<thead><tr><th>Plane</th><th>Pitch est.</th><th>Area est.</th><th>Squares est.</th></tr></thead><tbody>${PLANES.map((P, i) => `<tr data-i="${i}" class="${A && A.P === P ? 'sel' : ''}"><td>${P.name}${P.hit === 'heavy' ? '<span class="tag">hail</span>' : ''}</td><td>${P.rise}/12</td><td>${P.m.area.toLocaleString()} sq ft</td><td><b>${P.m.squares.toFixed(1)}</b></td></tr>`).join('')}</tbody><tfoot><tr><td>Total</td><td>${M.pitch}</td><td>${M.area.toLocaleString()} sq ft</td><td>~${M.squares}</td></tr></tfoot>`;
   tableEl.querySelectorAll('tbody tr').forEach(tr => { tr.onclick = () => { const i = +tr.dataset.i; i === activeIdx ? resetView() : focusPlane(i); }; tr.onmouseenter = () => { hoverIdx = +tr.dataset.i; }; tr.onmouseleave = () => { hoverIdx = -1; }; });
   focusEl.querySelectorAll('[data-whole]').forEach(b => b.onclick = resetView);
@@ -623,6 +663,7 @@ function frame(now) {
   explodeT += (explodeTarget - explodeT) * Math.min(1, dt * 4.5);
   if (tween) { const k = Math.min(1, (now - tween.start) / tween.dur), e = ease(k); camera.position.lerpVectors(tween.p0, tween.p1, e); controls.target.lerpVectors(tween.t0, tween.t1, e); if (k >= 1) { tween = null; window.__settled = true; } }
   controls.update();
+  const building = intro ? introStep(now) < 1 : false;
   const camDir = camera.position.clone();
   let anyLift = explodeT;
   planeGroups.forEach((pg, i) => {
@@ -630,6 +671,7 @@ function frame(now) {
     const wantLift = Math.max(explodeT, isA ? .5 : 0);
     pg.lift += (wantLift - pg.lift) * Math.min(1, dt * 5); anyLift = Math.max(anyLift, pg.lift);
     pg.g.position.copy(pg.explodeDir).multiplyScalar(pg.lift);
+    if (building) pg.g.position.y += (1 - (pg.introK || 0)) * 2.6;
     pg.ghostMat.opacity = .55 * Math.min(1, pg.lift * 2.2);
     const wantA = isA ? 1 : 0, wantH = i === hoverIdx && !isA ? 1 : 0;
     const changed = Math.abs(pg.act - wantA) > .002 || Math.abs(pg.hover - wantH) > .002 || frames < 2;
@@ -652,8 +694,8 @@ function frame(now) {
     tmpV.copy(pg.centroid).add(pg.g.position).addScaledVector(pg.n, .35); tmpV.y += BASE;
     const facing = pg.n.dot(camDir.clone().sub(tmpV).normalize());
     const c2 = project(tmpV);
-    place(pg.pin, c2, mode === 'planes' && !isA && facing > .08);
-    if (pg.hpin) place(pg.hpin, { x: c2.x, y: c2.y - 10 }, mode === 'hail' && facing > .05);
+    place(pg.pin, c2, mode === 'planes' && !isA && facing > .08 && !building);
+    if (pg.hpin) place(pg.hpin, { x: c2.x, y: c2.y - 10 }, mode === 'hail' && facing > .05 && !building);
     // edge pins only for the focused plane in edges mode
     pg.epins.forEach((el, k) => {
       const e = pg.P.m.edges[k];
@@ -666,7 +708,7 @@ function frame(now) {
   if (activeIdx >= 0) declutter(planeGroups[activeIdx].epins);
   dimsG.visible = mode === 'dims';
   DIMS.forEach(d => { const toCam = camera.position.clone().sub(d.mid).setY(0).normalize(); const far = Math.max(0, -d.nrm.dot(toCam)); tmpV.copy(d.mid).addScaledVector(d.nrm, d.off + far * 3.4); tmpV.y += BASE - .15; place(d.pin, project(tmpV), mode === 'dims'); });
-  const capWant = mode === 'edges' ? 0 : Math.max(0, 1 - explodeT * 1.6); capMat.opacity += (capWant - capMat.opacity) * Math.min(1, dt * 8); caps.visible = capMat.opacity > .02;
+  const capWant = mode === 'edges' || building ? 0 : Math.max(0, 1 - explodeT * 1.6); capMat.opacity += (capWant - capMat.opacity) * Math.min(1, dt * 8); caps.visible = capMat.opacity > .02;
 
   renderer.render(scene, camera);
   frames++;

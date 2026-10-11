@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
 <link rel="stylesheet" href="../vendor/maplibre-gl@4.7.1/maplibre-gl.css">
 <link rel="stylesheet" href="../lib/nimbus-shell.css">
+<link rel="stylesheet" href="../lib/rc-physical.css">
 <script>try{ if (window.self !== window.top) document.documentElement.classList.add('embed'); }catch(e){ document.documentElement.classList.add('embed'); }</script>
 <style>
 @font-face{font-family:'Instrument Sans';font-style:normal;font-weight:400 700;font-display:swap;src:url(fonts/instrument-sans-var-latin.woff2) format('woff2')}
@@ -51,6 +52,7 @@ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;paddin
 
 /* inside the tour shell the shell carries the roofer header, so this bar steps out */
 html.embed{--bar-h:0px}
+html.panel .qchip{display:none !important}
 html.embed .bar{display:none}
 html.embed .concept{display:none}
 /* map is the stage */
@@ -257,6 +259,7 @@ body:not(.fresh) .hello{display:none}
 <script src="../vendor/maplibre-gl@4.7.1/maplibre-gl.js"></script>
 <script src="../lib/rc-state.js"></script>
 <script src="../lib/brand.js"></script>
+<script src="../lib/rc-features.js"></script>
 <script>/* the roofer brands the page (lib/brand.js) */
 var OWNER=activeRoofer().owner;
 { const r=activeRoofer(); document.documentElement.style.setProperty('--roofer',r.accent); rooferMark(document.getElementById('rlogo'),r);
@@ -278,6 +281,9 @@ const phone=innerWidth<900;
 // its own: his answer line sits in the sheet, and the floating orb reacts. Opened on its own (no shell), the page
 // starts that same floating orb itself.
 const EMBED=document.documentElement.classList.contains('embed');
+// ?panel=1: the page sits in the shell's Ask panel by the Nimbus orb (lib/nimbus-shell.js): the conversation sheet opens full
+const PANEL=new URLSearchParams(location.search).get('panel')==='1';
+if(PANEL){ document.documentElement.classList.add('panel'); const sh=document.getElementById('sheet'); if(sh) sh.dataset.state='full'; }
 if(!EMBED&&window.Nimbus&&window.WingMascot){ Nimbus.init({go:(screen,params)=>RC.go(screen,params)}); Nimbus.setScreen('ask',true); Nimbus.arrive(null); }
 const nim={ setState(){}, pulse(){} };
 const slot=document.getElementById('slot');
@@ -450,6 +456,8 @@ handle.addEventListener('keydown',e=>{const i=STATES.indexOf(sheet.dataset.state
   document.getElementById('route').addEventListener('click',()=>RC.go('daily',{}));
   ans.addEventListener('click',e=>{const a=e.target.closest('a[data-go]'); if(!a) return; e.preventDefault(); let p={}; try{p=JSON.parse(a.getAttribute('data-params')||'{}')}catch(err){} RC.go(a.getAttribute('data-go'),p);});
   const q0=new URLSearchParams(location.search).get('q'); if(q0) setTimeout(()=>ask(q0),reduced?0:1200);
+  // the shell's Nimbus panel (#/ask?q=, RC.go('ask',{q})) hands a question to the page already loaded
+  addEventListener('message',e=>{ if(e.origin!==location.origin) return; const d=e.data||{}; if(d.type==='ask'&&d.q) ask(String(d.q)); });
 })();
 </script>
 </body>

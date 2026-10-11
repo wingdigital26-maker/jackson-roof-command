@@ -89,16 +89,23 @@
     current = el;
     setTimeout(function(){ el.classList.add('in'); window.__beat = name; }, current ? 320 : 0);
     if(BEAT || HOLD) return;
-    if(name === 'info') setTimeout(function(){ STORM ? showBeat('storm') : beatsOver(); }, SHORT ? (STORM ? 1200 : 1500) : (STORM ? 1300 : 1600));
-    else setTimeout(beatsOver, SHORT ? 2400 : 3400);
+    /* the greeting follows the info (or storm) beat on the first open and the short opening; the About replay has no greeting */
+    var GREET = WAIT || SHORT;
+    if(name === 'info') setTimeout(function(){ STORM ? showBeat('storm') : GREET ? showBeat('hi') : beatsOver(); }, SHORT ? (STORM ? 1200 : 1500) : (STORM ? 1300 : 1600));
+    else if(name === 'storm') setTimeout(function(){ GREET ? showBeat('hi') : beatsOver(); }, SHORT ? 2400 : 3400);
+    else setTimeout(beatsOver, 1800);   /* the greeting is on for at least this long, then stays up through the hold */
   }
+  (function(){ var o = window.activeRoofer && activeRoofer(); var el = document.querySelector('#beat-hi [data-r="owner"]');
+    if(el && !(o && o.owner)){ el.parentNode.textContent = 'Hi there'; } })();
 
   /* ---------- the hold (?wait=1): the beats are over, Today may still be getting ready ----------
      The shell posts {type:'intro-stage'} as Today's map, cards and lines land, then {type:'intro-go'} when it is ready
      (or at its own cap). The cue appears only if the wait outlives the beats by a moment, so a fast load never shows it.
-     The intro never ends early for a ready signal: the beats always play out. A key or click still skips. */
+     The intro never ends early for a ready signal: the beats and the greeting always play out. A key, a click or the
+     corner Skip still skips. */
   var goAsked = !WAIT, beatsDone = false, cueT = null;
-  var STAGE = {map:'Drawing the map', cards:'Building today’s list', lines:'Lines ready', ready:'Opening today'};
+  var STAGE = {map:'Drawing the map', cards:'Building today’s list', lines:'Lines ready', storms:'Storms loaded', crm:'CRM ready', ask:'Nimbus is up', still:'Still loading, almost there', ready:'Opening today'};
+  var stillT = null;
   function cue(text){
     var t = document.getElementById('load-t'); if(!t || t.textContent === text) return;
     t.classList.add('swap'); setTimeout(function(){ t.textContent = text; t.classList.remove('swap'); }, reduced ? 0 : 300);
@@ -107,18 +114,23 @@
     beatsDone = true;
     if(goAsked){ end(); return; }
     cueT = setTimeout(function(){ if(!ended && !goAsked) docEl.classList.add('loading'); }, 600);
-    setTimeout(function(){ if(!ended) end(); }, 14000);   /* the shell has its own cap (12 s); this is the floor under it */
+    stillT = setTimeout(function(){ if(!ended && !goAsked) cue(STAGE.still); }, 12000);   /* a long hold gets one calm line, never an error look */
+    setTimeout(function(){ if(!ended) end(); }, 27000);   /* the shell has its own cap (25 s); this is the floor under it */
   }
+  /* skip: a small word in the corner from 1.5 s in (any key or click skips too) */
+  (function(){ var b = document.getElementById('skip'); if(!b || HOLD || BEAT) return;
+    b.hidden = false; setTimeout(function(){ if(!ended) docEl.classList.add('skip-on'); }, reduced ? 0 : 1500);
+    b.addEventListener('click', function(e){ e.stopPropagation(); end(); }); })();
   if(WAIT) addEventListener('message', function(e){
     if(e.origin !== location.origin) return; var d = e.data || {};
     if(d.type === 'intro-stage'){ if(STAGE[d.stage]) cue(STAGE[d.stage]); return; }
-    if(d.type === 'intro-go'){ goAsked = true; cue(STAGE.ready); if(beatsDone && !ended){ clearTimeout(cueT); setTimeout(end, docEl.classList.contains('loading') ? 350 : 0); } }
+    if(d.type === 'intro-go'){ goAsked = true; clearTimeout(stillT); cue(STAGE.ready); if(beatsDone && !ended){ clearTimeout(cueT); setTimeout(end, docEl.classList.contains('loading') ? 350 : 0); } }
   });
 
   /* ---------- end: hand off to Today ---------- */
   function end(){
     if(ended) return; ended = true;
-    clearTimeout(cueT); docEl.classList.remove('loading');
+    clearTimeout(cueT); clearTimeout(stillT); docEl.classList.remove('loading'); docEl.classList.remove('skip-on');
     document.body.classList.add('go');
     try{ sessionStorage.setItem('rc.introSeen', '1'); }catch(e){}
     try{ window.parent.postMessage({type:'intro-done'}, '*'); }catch(e){}

@@ -58,7 +58,7 @@
   (function load() {
     const cs = document.currentScript;
     if (!cs || !cs.src || document.readyState !== 'loading') return;
-    const need = [['STM', '../lib/st-meta.js'], ['RoofPlan', '../js/roofplan.js'], ['RealRoof', '../lib/real-roof.js'], ['ROOFS_DFW', 'data/roofs-dfw.js']].filter(([g]) => g === 'ROOFS_DFW' ? !(window.ROOFS && ROOFS.jackson) : !window[g]);
+    const need = [['RCROOF', '../lib/rc-roof.js'], ['STM', '../lib/st-meta.js'], ['RoofPlan', '../js/roofplan.js'], ['RealRoof', '../lib/real-roof.js'], ['ROOFS_DFW', 'data/roofs-dfw.js']].filter(([g]) => g === 'ROOFS_DFW' ? !(window.ROOFS && ROOFS.jackson) : !window[g]);
     need.forEach(([, path]) => document.write('<script src="' + new URL(path, cs.src).href + '"><\/script>'));
   })();
 
@@ -220,7 +220,14 @@
       w.phHTML = function (h) {
         const html = o.apply(this, arguments); if (!h || !h.spec) return html;
         const txt = h.spec.loading ? 'Loading the outline' : h.spec.none ? 'No outline on file' : `~${h.sq} sq (est.)<i>${h.M && h.M.facets ? h.M.facets + ' planes, ' : ''}red took the hail</i>`;
-        return html.replace(/(<div class="bl"><span class="sw"><\/span>)[\s\S]*?(<\/div>)/, (m, a, b) => a + txt + b);
+        // the LiDAR story count (lib/rc-roof.js) rides in the card's top-right pill row; looked up once per home, the card repaints when it lands
+        let chip = '';
+        if (window.RCROOF && h.gi != null) {
+          const r = RCROOF.cached(h.gi);
+          if (r === undefined && h.loc) RCROOF.lookup(h.gi, h.loc[0], h.loc[1]).then(v => { if (!v || typeof w.paintRoof !== 'function') return; const c = document.querySelector(`.card[data-id="${h.id}"]`); if (c && c.dataset.i != null) w.paintRoof(+c.dataset.i); });
+          else chip = RCROOF.chip(r, 'sm');
+        }
+        return html.replace(/(<div class="bl"><span class="sw"><\/span>)[\s\S]*?(<\/div>)/, (m, a, b) => a + txt + b).replace(/<div class="tr">/, chip ? '<div class="tr has-story">' + chip : '<div class="tr">');
       };
     }
     // (the page's own why() states the no-outline case since the Daily 50 engine; no wrap here)

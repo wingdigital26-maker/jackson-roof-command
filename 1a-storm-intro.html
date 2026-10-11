@@ -42,8 +42,16 @@
   <p class="beat-facts"><span><b id="f-homes"></b> homes watched across <span id="f-counties"></span> counties</span><span>Last storm <b id="f-storm">Jun 2</b>, <b id="f-hit"></b> homes hit</span></p>
 </section>
 
-<!-- the loading cue (?wait=1, the first open): shown only when Today is still getting ready after the beats. One hairline, one quiet line of text. -->
+<!-- BEAT: the greeting (first open and the short opening). The roofer's first name from lib/brand.js; the beat stays up while the app finishes loading underneath. -->
+<section class="beat" id="beat-hi" aria-live="polite">
+  <p class="beat-big beat-hi">Hi <span data-r="owner"></span></p>
+  <p class="beat-sub" id="hi-sub">Your day is loading</p>
+</section>
+
+<!-- the loading cue (?wait=1, the first open): shown only when the app is still getting ready after the beats. One hairline, one quiet line of text. -->
 <div class="load" id="load" aria-live="polite"><i class="load-bar"></i><span id="load-t">Opening today</span></div>
+<!-- skip: small, in the corner, appears after a moment (any key skips too) -->
+<button type="button" class="intro-skip" id="skip" hidden>Skip</button>
 
 <!-- BEAT 3: storm report, only when a storm came through in the last 7 days (or ?storm=1). Nothing sends. -->
 <section class="beat" id="beat-storm" aria-live="polite">

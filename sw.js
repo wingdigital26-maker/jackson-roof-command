@@ -11,7 +11,7 @@
    - Basemap tiles, glyphs and sprites from tiles.openfreemap.org: cache first, capped.
    Only GET over http(s) is ever cached; POSTs, Range requests, tel:/sms: links and every other host pass straight through.
    To refresh everything for every visitor: bump CACHE_VERSION. To switch it off for one browser: open any tour page with ?nosw=1. */
-const CACHE_VERSION = 'rc-tour-v6-jackson-nimbus-corner-d1791728043';
+const CACHE_VERSION = 'rc-tour-v8-jackson-stories-report-d1791748506';
 const SHELL = CACHE_VERSION + '-shell';
 const DATA = CACHE_VERSION + '-data';
 const TILES = CACHE_VERSION + '-tiles';
@@ -20,17 +20,17 @@ const TILE_MAX = 3000;
 
 const PRECACHE = [
   'product.html',
-  'lib/nimbus-shell.css', 'lib/rc-state.js', 'lib/st-meta.js', 'lib/brand.js', 'lib/wing-mascot.js', 'lib/nimbus-shell.js',
+  'lib/nimbus-shell.css', 'lib/rc-physical.css', 'lib/rc-features.js', 'lib/nb-react.js', 'lib/rc-state.js', 'lib/rc-roof.js', 'lib/st-meta.js', 'lib/brand.js', 'lib/wing-mascot.js', 'lib/nimbus-shell.js',
   'lib/st-fonts/instrument-sans-var-latin.woff2', 'lib/st-fonts/ibm-plex-mono-400-latin.woff2',
   // Daily 50
-  'c4-command-deck/deck.html', 'c4-command-deck/dk.css', 'c4-command-deck/dk.js', 'c4-command-deck/reach.js', 'c4-command-deck/data/routes-dfw.js',
+  'c4-command-deck/deck.html', 'c4-command-deck/dk.css', 'c4-command-deck/features.css', 'c4-command-deck/features.js', 'c4-command-deck/dk.js', 'c4-command-deck/reach.js', 'c4-command-deck/data/routes-dfw.js',
   'c4-command-deck/fonts/instrument-sans-var-latin.woff2', 'c4-command-deck/fonts/ibm-plex-mono-400-latin.woff2',
   'vendor/maplibre-gl@4.7.1/maplibre-gl.js', 'vendor/maplibre-gl@4.7.1/maplibre-gl.css',
   // Storm map (the 4 MB homes file is cached the first time the Storm map opens, not here)
-  '1b-storm-theater.html', 'lib/st-common.css', 'lib/st-homes.js', 'lib/st-storm.js', 'lib/st-map.js', 'lib/st-data-dfw/catalog.json',
+  '1b-storm-theater.html', 'lib/st-common.css', 'lib/st-homes.js', 'lib/st-storm.js', 'lib/st-map.js', 'lib/st-replay.js', 'lib/st-data-dfw/catalog.json',
   'vendor/deck.gl@9.0.38/dist.min.js',
   // Home
-  'c5-home/index.html', 'c5-home/home.css', 'c5-home/rec.js', 'c5-home/home.js',
+  'c5-home/index.html', 'c5-home/home.css', 'c5-home/features.css', 'c5-home/features.js', 'c5-home/rec.js', 'c5-home/home.js',
   'js/roofplan.js', 'lib/real-roof.js', 'c4-command-deck/data/roofs-dfw.js',
   'c5-home/assets/fonts/instrument-sans-var-latin.woff2', 'c5-home/assets/fonts/ibm-plex-mono-400-latin.woff2',
   'vendor/three@0.170.0/build/three.module.min.js',

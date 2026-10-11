@@ -51,8 +51,20 @@ html.loading .load{opacity:1; transform:translate(-50%,0)}
 .load span{font-size:var(--step--1); color:var(--muted); line-height:1.4; transition:opacity .3s ease}
 .load span.swap{opacity:0}
 
+/* the greeting: the roofer's first name, large, with a quiet line under it */
+.beat-hi{margin-top:0 !important}
+#beat-hi .beat-sub{margin-top:var(--space-2) !important}
+
+/* skip: a small muted word in the corner, shown a moment into the opening; never a button face */
+.intro-skip{position:fixed; right:calc(env(safe-area-inset-right, 0px) + var(--space-5)); bottom:calc(env(safe-area-inset-bottom, 0px) + var(--space-5)); z-index:3;
+  font:500 var(--step--1) var(--font-text); color:var(--muted); background:transparent; border:0; padding:6px 10px; cursor:pointer;
+  opacity:0; transition:opacity .5s ease-out, color .2s ease}
+.intro-skip[hidden]{display:none}
+html.skip-on .intro-skip{opacity:.7}
+.intro-skip:hover, .intro-skip:focus-visible{color:var(--paper); opacity:1; outline:none}
+
 /* exit: the site's fade, everything at once */
-body.go #stage, body.go #hail, body.go #nav, body.go .hero, body.go .beat, body.go .load{transition:opacity .4s ease-out; opacity:0}
+body.go #stage, body.go #hail, body.go #nav, body.go .hero, body.go .beat, body.go .load, body.go .intro-skip{transition:opacity .4s ease-out; opacity:0}
 
 /* the concept label stays tiny and out of the way */
 .concept-tag{position:fixed; right:14px; bottom:10px; z-index:9; font:500 10.5px var(--font-text); padding:4px 9px; border-radius:var(--radius-pill); background:rgba(255,255,255,.8); color:var(--muted); border:1px solid var(--hair)}
@@ -69,6 +81,6 @@ body.go #stage, body.go #hail, body.go #nav, body.go .hero, body.go .beat, body.
   .concept-tag{right:10px; bottom:calc(env(safe-area-inset-bottom, 0px) + 8px)}
 }
 @media (prefers-reduced-motion: reduce){
-  .beat, .beat.out, html.beat-on .split-head, html.beat-on .hero-line, body.go #stage, .load{transition:none}
+  .beat, .beat.out, html.beat-on .split-head, html.beat-on .hero-line, body.go #stage, .load, .intro-skip{transition:none}
   .load-bar::after{animation:none; left:30%}
 }

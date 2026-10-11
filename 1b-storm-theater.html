@@ -7,6 +7,7 @@
 <link rel="preload" href="lib/st-fonts/instrument-sans-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="vendor/maplibre-gl@4.7.1/maplibre-gl.css">
 <link rel="stylesheet" href="lib/st-common.css">
+<link rel="stylesheet" href="lib/rc-physical.css">
 <style>
 body{height:100vh;overflow:hidden}
 #map{position:fixed;inset:0}
@@ -372,5 +373,7 @@ body:not(.storm) .hh,body.sel .hh{display:none}
 <div class="concept-tag" id="ctag">Concept by Wing Digital. Homes, addresses, radar hail per home and roofs are real data; the pipeline is yours, kept on this device</div>
 <script src="vendor/maplibre-gl@4.7.1/maplibre-gl.js"></script>
 <script src="vendor/deck.gl@9.0.38/dist.min.js"></script>
-<script src="lib/rc-state.js"></script><script src="lib/brand.js"></script><script src="lib/st-homes.js"></script><script src="lib/st-meta.js"></script><script src="js/roofplan.js"></script><script src="lib/real-roof.js"></script><script src="lib/st-storm.js"></script>
-<script src="lib/st-map.js"></script></body></html>
+<script src="lib/rc-state.js"></script><script src="lib/brand.js"></script><script src="lib/st-homes.js"></script><script src="lib/rc-roof.js"></script><script src="lib/st-meta.js"></script><script src="js/roofplan.js"></script><script src="lib/real-roof.js"></script><script src="lib/st-storm.js"></script>
+<script src="lib/rc-features.js"></script>
+<script src="lib/st-map.js"></script>
+<script src="lib/st-replay.js"></script><!-- storm replay: the front sweeps the whole map (switch RC_FEATURES.stormReplay) --></body></html>

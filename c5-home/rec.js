@@ -67,7 +67,8 @@
       if (me !== rawId) return;
       if (f.addr) { rec.addr = f.addr; rec.place = f.place; }
       if ((rec.lon == null || rec.lat == null) && isFinite(f.lon) && isFinite(f.lat)) { rec.lon = f.lon; rec.lat = f.lat; }   // opened cold by id
-      Object.assign(rec, { subdivision: f.subdivision || rec.subdivision, sqft: f.sqft || rec.sqft, year: f.year, permit: f.permit, roofAge: f.roofAge, pitchNote: f.pitch.note, county: f.county || rec.county });
+      Object.assign(rec, { subdivision: f.subdivision || rec.subdivision, sqft: f.sqft || rec.sqft, year: f.year, permit: f.permit, roofAge: f.roofAge, pitchNote: f.pitch.note, county: f.county || rec.county, gi, roof: f.roof || null });
+      window.HOME.roof = rec.roof;   // home.js: the eave rises to the LiDAR story count; the stories chip and the Roof report read it too
       place = rec.place || place; if (window.renderRecord) window.renderRecord();
     }).catch(() => {}) : Promise.resolve();
   }
@@ -305,7 +306,7 @@
   // ---------- header sub line, contact ----------
   function renderSub() {
     const st = RC.stage(id, dflt);
-    $('#rsub').innerHTML = `<span class="stagepill">${esc(RC.stageName(st))}</span>${archivedOf(id) ? '<span class="stagepill nn" title="Parked in Not now on the pipeline board. Restore it there, or move it on the stage bar.">Not now</span>' : ''}<span>${esc(place)}</span>${OWNDATA && rec.subdivision ? `<span>${esc(rec.subdivision)}</span>` : ''}<span>${OWNDATA ? (rec.owner ? esc(rec.owner) : RC.OWNER_NONE) : rec.person ? esc(rec.person) + ' <i class="smp">sample</i>' : 'Owner name not available'}</span>`;
+    $('#rsub').innerHTML = `<span class="stagepill">${esc(RC.stageName(st))}</span>${archivedOf(id) ? '<span class="stagepill nn" title="Parked in Not now on the pipeline board. Restore it there, or move it on the stage bar.">Not now</span>' : ''}${window.RCROOF ? RCROOF.chip(rec.roof) : ''}<span>${esc(place)}</span>${OWNDATA && rec.subdivision ? `<span>${esc(rec.subdivision)}</span>` : ''}<span>${OWNDATA ? (rec.owner ? esc(rec.owner) : RC.OWNER_NONE) : rec.person ? esc(rec.person) + ' <i class="smp">sample</i>' : 'Owner name not available'}</span>`;
     const c = RC.canText(id, tel || null);
     document.querySelectorAll('.callwhy').forEach(w => { w.hidden = c.ok; w.textContent = c.reason; });
     document.querySelectorAll('.bookLbl').forEach(l => { l.textContent = RC.booking(id) ? 'Reschedule' : 'Book'; });
@@ -342,7 +343,7 @@
       const sq = M ? M.squares : rec.sq, waste = M ? M.waste : 15, order = sq ? Math.round(sq * (1 + waste / 100) * 10) / 10 : null;
       pb.innerHTML = `<div class="ph"><h3>Proposal</h3><span class="pill">Sent, sample</span></div>
         <div class="kv pk"><div><span>Scope</span><b>Full replacement, architectural shingle</b></div>
-        <div><span>${M && M.drawn ? 'Drawn by you' : 'Estimated'}</span><b title="Estimated from public building outlines and 2018 LiDAR. Verify on site.">${sq != null ? '~' + sq + ' sq (est.)' + (M && M.drawn && !M.pitchMeasured ? ', pitch estimated' : '') : 'Not estimated'}</b></div>
+        <div><span>${M && M.drawn ? 'Drawn by you' : 'Estimated'}</span><b title="${window.RealRoof ? RealRoof.tip(M) : 'Estimated from public building outlines and 2018 LiDAR. Verify on site.'}">${sq != null ? '~' + sq + ' sq (est.)' + (M && M.drawn && !M.pitchMeasured ? ', pitch estimated' : '') : 'Not estimated'}</b></div>
         <div><span>Waste</span><b>${waste}%, from the hips and valleys</b></div>
         <div><span>Order</span><b>${order != null ? '~' + order + ' sq (est.)' : 'After the site check'}</b></div>
         <div><span>Insurance</span><b>Adjuster meeting if the owner files</b></div></div>
@@ -391,7 +392,16 @@
   window.setTab = setTab;
   tabs.onclick = e => { const b = e.target.closest('button'); if (b) setTab(b.dataset.t); };
 
-  function renderAll() { renderHead(); renderSub(); renderSteps(); renderNext(); renderActivity(); if (window.renderPipe) window.renderPipe(); if (window.renderCRM) window.renderCRM(); }
+  // ---------- Roof report tab: the per-facet LiDAR report (lib/rc-roof.js); a home without one keeps its outline estimate ----------
+  const reportEl = $('#report');
+  function renderReport() {
+    if (!reportEl || !window.RCROOF) return;
+    const me = rawId, M = measures(), est = M ? { squares: M.squares, pitch: M.pitch, planes: M.planes ? M.planes.length : 0 } : {};
+    const paint = d => { if (me !== rawId) return; const h = RCROOF.reportHTML(rec.roof, d, est); if (reportEl.__h !== h) { reportEl.innerHTML = h; reportEl.__h = h; } };
+    if (!rec.roof || !rec.roof.facets) return paint(null);
+    RCROOF.detail(rec.gi).then(paint, () => paint(null));
+  }
+  function renderAll() { renderHead(); renderSub(); renderSteps(); renderNext(); renderActivity(); renderReport(); if (window.renderPipe) window.renderPipe(); if (window.renderCRM) window.renderCRM(); }
   // the stage control the CRM thread and home pane share with the stage bar (same rules: Inspection booked needs a time)
   window.homeSetStage = function (tid, k) {
     const prev = RC.stage(tid, dflt); if (k === prev && !archivedOf(tid)) return;

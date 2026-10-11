@@ -87,6 +87,10 @@
       Object.assign(o, { addr: rc.addr || o.addr, city: rc.city || o.city, zip: rc.zip || o.zip, year: rc.year || o.year, permit: rc.permit || o.permit, roofAge: rc.roofAge || o.roofAge,
         owner: rc.owner || null, homestead: !!rc.homestead, subdivision: rc.subdivision || o.subdivision, place: rc.place || '', phone: telOf(rc.phone) || o.phone, hail: H.hail != null ? H.hail : o.hail, hailDate: H.hailDate || '' });
       if (H.measure) { o.sq = H.measure.squares; o.pitch = H.measure.pitch; }
+      o.roof = rc.roof || null;   // the per-facet LiDAR record (stories, squares) when the batch has one
+    }
+    if (o.roof === undefined && o.gi != null && window.RCROOF) {
+      o.roof = RCROOF.cached(o.gi) || null;
       o.customer = !!rc.customer; o.past = o.past || !!rc.customer; o.optin = o.optin || !!(rc.optin || rc.optIn);
     }
     if (!o.owner && o.gi != null && RC.ownerNow) o.owner = RC.ownerNow(o.gi);
@@ -259,7 +263,7 @@
     if (!id) { const e = `<div class="cempty"><span class="ic">${ICON.roof}</span><b>The house shows here</b><p>Pick a thread and the home's roof, hail, roof record and stage follow.</p></div>`; if (chh.__h !== '') { chh.innerHTML = ''; chh.__h = ''; } if (chf.__h !== e) { chf.innerHTML = e; chf.__h = e; } return; }
     const h = homeOf(id), H = window.HOME, mine = !!(H && H.rawId === id), st = RC.stage(id), idx = RC.STAGES.findIndex(s => s[0] === st), b = RC.booking(id), arch = (RC.pipeline()[id] || {}).archived;
     const msg = MSG ? RC.activity().find(a => a.id === id && a.at === MSG) : null;
-    const head = `<button type="button" class="cback" data-a="tothread" aria-label="Back to the conversation"><span class="ic">${ICON.back}</span></button><div class="cvt"><b>${esc(h.addr)}</b><small>${esc([h.place || [h.city, h.zip].filter(Boolean).join(' '), h.subdivision].filter(Boolean).join(' · '))}</small></div><span class="mono">Home</span><button type="button" class="cbtn sm" data-a="record">Open home record</button>`;
+    const head = `<button type="button" class="cback" data-a="tothread" aria-label="Back to the conversation"><span class="ic">${ICON.back}</span></button><div class="cvt"><b>${esc(h.addr)}${window.RCROOF ? RCROOF.chip(h.roof, 'sm') : ''}</b><small>${esc([h.place || [h.city, h.zip].filter(Boolean).join(' '), h.subdivision].filter(Boolean).join(' · '))}</small></div><span class="mono">Home</span><button type="button" class="cbtn sm" data-a="record">Open home record</button>`;
     if (chh.__h !== head) { chh.innerHTML = head; chh.__h = head; }
     const roof = h.roofAge || (h.year ? 'Built ' + h.year : mine ? 'Checking the county record' : 'Not on file');
     const permit = h.permit ? 'Reroof permit ' + String(h.permit).slice(0, 4) : 'No reroof permit on file';
@@ -271,11 +275,11 @@
       `<div class="ckpi">` +
       `<div><span>Hail here</span>${h.hail != null ? `<b>${h.hail.toFixed(2)} in</b><small>${esc(h.hailDate)} radar</small>` : '<b class="sm">Not on file</b>'}</div>` +
       `<div><span>Roof</span>${h.year ? `<b>${esc(String(h.year))}</b><small>${esc(permit.replace('on file', '').trim())}</small>` : `<b class="sm">${esc(roof)}</b><small>${esc(permit)}</small>`}</div>` +
-      `<div><span>Pitch est.</span><b${/^\d+\/\d+$/.test(String(pitch)) ? '' : ' class="sm"'}>${esc(String(pitch))}</b><small title="Estimated from public building outlines and 2018 LiDAR. Verify on site.">${h.pitch ? 'LiDAR estimate' : ''}</small></div></div>` +
+      `<div><span>Pitch est.</span><b${/^\d+\/\d+$/.test(String(pitch)) ? '' : ' class="sm"'}>${esc(String(pitch))}</b><small title="${window.RealRoof ? RealRoof.tip(mine && H.measure) : 'Estimated from public building outlines and 2018 LiDAR. Verify on site.'}">${h.pitch ? 'LiDAR estimate' : ''}</small></div></div>` +
       `<div class="cfg">` +
       `<div><span>Owner</span><b>${OWNDATA ? (h.owner ? esc(h.owner) + (h.homestead ? ', homestead' : '') : RC.OWNER_NONE) : 'Owner name not available'}</b></div>` +
       (RC.tracedRows ? RC.tracedRows(h.addr, h.zip) : '') +
-      `<div><span>Squares est.</span><b title="Estimated from public building outlines and 2018 LiDAR. Verify on site.">${esc(String(sq))}${h.sq != null ? ', from the outline' : ''}</b></div>` +
+      `<div><span>Squares est.</span><b title="${window.RealRoof ? RealRoof.tip(mine && H.measure) : 'Estimated from public building outlines and 2018 LiDAR. Verify on site.'}">${esc(String(sq))}${h.sq != null ? (mine && H.measure && H.measure.facet ? ', from LiDAR roof facets' : ', from the outline') : ''}</b></div>` +
       `<div><span>Texts</span><b>${h.past ? 'Past customer' : h.optin ? 'Opted in' : RC.optedOut(id) ? 'Opted out' : 'Not yet opted in'}</b></div></div>` +
       `<div class="cstrip" role="group" aria-label="Stage">${strip}</div>${arch ? '<p class="cnote">Parked in Not now on the Pipeline.</p>' : ''}` +
       `<div class="cact book">${b ? `<p class="cnote"><span class="ic">${ICON.cal}</span>Inspection ${esc(RC.when(b))}</p><button type="button" class="cbtn" data-a="ics"><span class="ic">${ICON.cal}</span>Add to calendar</button><button type="button" class="cbtn pri" data-a="book">Reschedule</button>` : `<span></span><button type="button" class="cbtn pri" data-a="book"><span class="ic">${ICON.cal}</span>Book inspection</button>`}</div>`;
