@@ -11,7 +11,7 @@
    - Basemap tiles, glyphs and sprites from tiles.openfreemap.org: cache first, capped.
    Only GET over http(s) is ever cached; POSTs, Range requests, tel:/sms: links and every other host pass straight through.
    To refresh everything for every visitor: bump CACHE_VERSION. To switch it off for one browser: open any tour page with ?nosw=1. */
-const CACHE_VERSION = 'rc-tour-v6-jackson-nimbus-corner';
+const CACHE_VERSION = 'rc-tour-v6-jackson-nimbus-corner-d1791693270';
 const SHELL = CACHE_VERSION + '-shell';
 const DATA = CACHE_VERSION + '-data';
 const TILES = CACHE_VERSION + '-tiles';
@@ -31,7 +31,7 @@ const PRECACHE = [
   'vendor/deck.gl@9.0.38/dist.min.js',
   // Home
   'c5-home/index.html', 'c5-home/home.css', 'c5-home/rec.js', 'c5-home/home.js',
-  '../js/roofplan.js', 'lib/real-roof.js', 'c4-command-deck/data/roofs-dfw.js',
+  'js/roofplan.js', 'lib/real-roof.js', 'c4-command-deck/data/roofs-dfw.js',
   'c5-home/assets/fonts/instrument-sans-var-latin.woff2', 'c5-home/assets/fonts/ibm-plex-mono-400-latin.woff2',
   'vendor/three@0.170.0/build/three.module.min.js',
   'vendor/three@0.170.0/examples/jsm/controls/OrbitControls.js',

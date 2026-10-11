@@ -58,7 +58,7 @@
   (function load() {
     const cs = document.currentScript;
     if (!cs || !cs.src || document.readyState !== 'loading') return;
-    const need = [['STM', '../lib/st-meta.js'], ['RoofPlan', '../../js/roofplan.js'], ['RealRoof', '../lib/real-roof.js'], ['ROOFS_DFW', 'data/roofs-dfw.js']].filter(([g]) => g === 'ROOFS_DFW' ? !(window.ROOFS && ROOFS.jackson) : !window[g]);
+    const need = [['STM', '../lib/st-meta.js'], ['RoofPlan', '../js/roofplan.js'], ['RealRoof', '../lib/real-roof.js'], ['ROOFS_DFW', 'data/roofs-dfw.js']].filter(([g]) => g === 'ROOFS_DFW' ? !(window.ROOFS && ROOFS.jackson) : !window[g]);
     need.forEach(([, path]) => document.write('<script src="' + new URL(path, cs.src).href + '"><\/script>'));
   })();
 

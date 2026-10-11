@@ -7,7 +7,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 // Real roofs: the app's roof solver, the spec converter and every Daily 50 stop's real building outline.
 // (Classic scripts that set window.RoofPlan / RealRoof / ROOFS; importing them runs them once.)
-await Promise.all([import('../../js/roofplan.js'), import('../lib/real-roof.js'), import('../c4-command-deck/data/roofs-dfw.js')]).catch(() => {});
+await Promise.all([import('../js/roofplan.js'), import('../lib/real-roof.js'), import('../c4-command-deck/data/roofs-dfw.js')]).catch(() => {});
 if (window.HOME_READY) await window.HOME_READY; // rec.js: the county record (address, permit, pitch) for this home
 
 // ---------- icons (shared set with the Command Deck) ----------
