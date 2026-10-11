@@ -604,7 +604,7 @@ label.dlab{display:block}
       <div class="qh"><div class="ltabs" role="tablist" aria-label="Left panel"><button type="button" role="tab" id="tabNext" data-tab="next" aria-selected="true" aria-controls="paneNext">Up next</button><button type="button" role="tab" id="tabInbox" data-tab="inbox" aria-selected="false" aria-controls="paneInbox">Inbox<i id="inN" hidden></i></button></div><small id="qLeft"></small></div>
       <div class="lpane on" id="paneNext" role="tabpanel" aria-labelledby="tabNext">
         <div class="qlist" id="qlist"></div>
-        <div class="qfoot" id="qfoot">Follow-ups due first, then the storm's best homes by score. Homes you add from the storm map join the end.</div>
+        <div class="qfoot" id="qfoot">Follow-ups due first, then the homes most likely to say yes across your whole area (roof age, hail, neighbours reroofing, roof size, owner lives there). Homes you add from the storm map join the end.</div>
       </div>
       <div class="lpane" id="paneInbox" role="tabpanel" aria-labelledby="tabInbox"></div>
     </aside>
@@ -652,7 +652,7 @@ let TOTAL = 0, LEFT = 0;   // the stops actually in today's queue (set by buildL
 const showcase = R.storm.iso === RC.SHOWCASE;
 
 // ---------- the list: today's Daily 50 (lib/rc-queue.js RC.daily), then homes added from the storm map ----------
-// RC.daily() picks the day's 50 real homes (cadence follow-ups due first, then the storm's best hit homes by score) and
+// RC.daily() picks the day's 50 real homes (cadence follow-ups due first, then the homes most likely to say yes, scored over every house in the area, storm or not) and
 // keeps the same 50 all day. Each home's roof comes from its own building outline (RealRoof.mapEntry). People and
 // phones are sample; the owner comes from the private county roll when it is loaded (RC.owner), else "Owner not loaded".
 const hash = s => { let h = 7; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
@@ -863,11 +863,15 @@ let query = '';
 // the family name for a list row: owners arrive as "Noelle Appel" / "Igor & Alexandra Reznitsky" (RC.ownerDisplay); a company keeps its first word
 const surname = o => { const w = String(o||'').trim().split(/[\s,&]+/).filter(Boolean); if (!w.length) return ''; if (BIZ.test(o)) return w[0]; let s = w[w.length-1]; if (w.length > 2 && /^(jr|sr|ii|iii|iv)\.?$/i.test(s)) s = w[w.length-2]; return s; };
 const shortWhy = w => String(w||'')
-  .replace(/^(\d\.\d\d) in hail on (.+)$/, '$1 in hail')
-  .replace(/^Roof about (\d+) years old, no reroof permit on file$/, 'Roof about $1 yrs, no permit')
-  .replace(/^Roof about (\d+) years old \(reroof permit (\d+)\)$/, 'Roof about $1 yrs (permit $2)')
-  .replace(/ miles from your .* base$/, ' mi from base')
-  .replace(/^About (\d+) squares of roof$/, '~$1 sq (est.)');
+  .replace(/^([\d.]+) in hail on ([A-Z][a-z]{2} \d+(?:, \d{4})?)(, the newest storm)?$/, '$1 in hail $2')
+  .replace(/^Roof is about (\d+) years old.*$/, 'Roof $1 yrs old')
+  .replace(/^Older home, built (\d+).*$/, 'Built $1')
+  .replace(/^(\d+) neighbours? reroofed in the last 12 months.*$/, (m, n) => n+' nearby reroof'+(n==='1'?'':'s'))
+  .replace(/^Owner lives here.*$/, 'Owner lives here')
+  .replace(/^(?:Large roof, about|About) (\d+) squares.*$/, '~$1 sq')
+  .replace(/^Steep roof, pitch est\. (\d+)\/12.*$/, 'Steep $1/12')
+  .replace(/^Hit by (\d+) storms of 1 in or more.*$/, '$1 storms')
+  .replace(/ miles from your .* base$/, ' mi from base');
 function cadenceBits(h){
   const p = h.pick; if (!p || p.reason !== 'cadence') return null;
   const w = (p.why && p.why[0]) || '', m = /^Day (\d+) follow-up, (.+)$/.exec(w);
@@ -887,7 +891,7 @@ function rowMeta(h, d, sk, stg){
 }
 function renderQueue(anim){
   const q = document.getElementById('qlist'), m = query.trim().toLowerCase();
-  if (!QREADY){ const html = `<div class="qnone qload">${QERR ? "Today's list could not be built: "+esc(QERR)+'.' : "Picking today's 50 homes from the storm's hit homes..."}</div>`; if (q.__html !== html){ q.innerHTML = html; q.__html = html; } return; }
+  if (!QREADY){ const html = `<div class="qnone qload">${QERR ? "Today's list could not be built: "+esc(QERR)+'.' : "Picking today's 50 homes most likely to say yes..."}</div>`; if (q.__html !== html){ q.innerHTML = html; q.__html = html; } return; }
   const hz = new Set(HOMES.map(h=>h.hail)).size > 1;   // every stop took the same hail: the right column shows squares instead
   const rows = HOMES.map((h,i)=>{
     if (m && !(h.addr.toLowerCase().includes(m) || h.short.toLowerCase().includes(m) || (h.person||'').toLowerCase().includes(m) || (h.owner||'').toLowerCase().includes(m))) return '';
