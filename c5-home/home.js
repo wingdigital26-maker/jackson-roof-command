@@ -454,7 +454,7 @@ function build() {
   }
   activeIdx = -1; hoverIdx = -1; explodeTarget = 0; explodeT = 0; frames = 0; stage.classList.remove('focused');
   bExplode.classList.remove('on'); bExplode.textContent = 'Explode';
-  const pitchTxt = SPEC && SPEC.drawn ? (SPEC.pitchMeasured ? 'pitch est. ' + M.pitch : 'pitch estimated') : M.facet ? 'pitch ' + M.pitchText : pitchGap() ? 'pitch est. (no LiDAR)' : 'pitch est. ' + M.pitch;
+  const pitchTxt = SPEC && SPEC.drawn ? (SPEC.pitchMeasured ? 'pitch est. ' + M.pitch : 'pitch estimated') : M.facet ? 'pitch ' + M.pitchText : (SPEC && SPEC.facet3d) ? 'pitch est. ' + M.pitch + ' (LiDAR, lower confidence)' : pitchGap() ? 'pitch est. (no LiDAR)' : 'pitch est. ' + M.pitch;
   document.getElementById('titleH').title = window.RealRoof ? RealRoof.tip(SPEC) : 'Estimated from public building outlines and 2018 LiDAR. Verify on site.'; document.getElementById('titleH').textContent = NONE ? 'Outline not on file yet' : `${M.facet ? M.squares + ' sq measured' : '~' + M.squares + ' sq (est.)'}, ${SPEC_INFO ? SPEC_INFO.style : 'hip roof'}, ${pitchTxt}`;
   document.getElementById('titleP').textContent = NONE ? 'The public building maps have no outline for this home yet, so there are no squares to show. This is the parcel from above.'
     : `${(SPEC && SPEC.label) || 'Roof drawn from the building outline'}${DEFAULT_HOUSE ? " (stop 1 on today's route)" : ''}. Drag to turn it, click a plane to measure it.`;

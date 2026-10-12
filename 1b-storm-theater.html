@@ -80,8 +80,14 @@ body:not(.loaded) .stat.rv{opacity:1;transform:none}
 body:not(.storm) .only-storm{display:none}
 body.storm .only-calm{display:none}
 /* record panel: who is this home and what is next. Hidden until a home is picked */
-.peek{position:fixed;right:24px;top:118px;width:344px;border-radius:20px;padding:22px 22px 20px;z-index:5}
+.peek{position:fixed;right:24px;top:118px;width:344px;border-radius:20px;padding:22px 22px 20px;z-index:7;max-height:calc(100vh - 118px - 24px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
 body:not(.sel) .peek{display:none}
+/* a home is open: the pipeline strip steps aside (never over the card) and the card scrolls on its own, its last
+   control padded clear of the Nimbus orb (64px, bottom-right) */
+body.sel .dock .pipe{display:none}
+body.sel .dock{right:calc(24px + 344px + 24px)}
+body.sel .nav{max-width:calc(100vw - 24px - 344px - 48px);overflow-x:auto;scrollbar-width:none}
+.peek .acts{padding-bottom:96px}
 .peek .x{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:999px;border:1px solid var(--hair);background:var(--panel-2);display:grid;place-items:center;cursor:pointer;transition:background .2s ease}
 .peek .x:hover{background:var(--panel-3)}
 .peek .x svg{width:12px;height:12px}
@@ -194,6 +200,7 @@ body.embedded .ask:not(.wide){display:none}
 body.embedded .res{top:14px}
 body.embedded .stat{top:22px}
 body.embedded .peek,body.embedded .hh{top:22px}
+body.embedded .peek{max-height:calc(100vh - 22px - 24px)}
 body.embedded .concept-tag{display:none}
 @media (max-width:600px){ body.embedded .res{top:calc(env(safe-area-inset-top,0px) + 62px)} }
 /* record actions: Open record (accent) + Add to Daily 50 (secondary) */
@@ -220,7 +227,7 @@ body:not(.storm) .hh,body.sel .hh{display:none}
 .toast .pill{min-height:36px}
 @media (prefers-reduced-motion:reduce){ .rv,.tip,.read,.tick,.tlab,.btn,.sheet,.cta,.pill,.toast,.scrim{transition:none} .rv{opacity:1;transform:none} }
 
-@media (max-width:1300px){ .ask{width:360px;white-space:nowrap;overflow:hidden} .stat{width:316px;padding:20px 22px} .stat .date{font-size:12.5px} .peek,.hh{width:320px} .stat .big{font-size:72px} .stage{padding:0 11px} .stage b{font-size:24px} }
+@media (max-width:1300px){ .ask{width:360px;white-space:nowrap;overflow:hidden} .stat{width:316px;padding:20px 22px} .stat .date{font-size:12.5px} .peek,.hh{width:320px} body.sel .dock{right:calc(24px + 320px + 24px)} body.sel .nav{max-width:calc(100vw - 24px - 320px - 48px)} .stat .big{font-size:72px} .stage{padding:0 11px} .stage b{font-size:24px} }
 
 /* ================= phone: designed for a roofer in a truck ================= */
 @media (max-width:600px){
