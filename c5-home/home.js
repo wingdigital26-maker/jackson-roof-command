@@ -42,7 +42,7 @@ const V = (x, y, z) => new THREE.Vector3(x, y, z);
 // Edge types per plane follow the point order: edge i runs pts[i] -> pts[i+1].
 // Texas data (lib/brand.js dataRoot) with no LiDAR pitch: the headline says "not measured", never a bare 6/12
 const pitchGap = () => !!(window.activeRoofer && activeRoofer().dataRoot && SPEC && !SPEC.none && !SPEC.pitchMeasured);
-let H0, SPEC, HAIL, PLANES, CAPS, FP = null, SPEC_INFO = null, M;
+let H0, SPEC, HAIL, PLANES, CAPS, FP = null, FPT = null, SPEC_INFO = null, M;
 const defaultPlanes = () => [
   { id: 'A', name: 'Front slope', rise: 6, hit: 'heavy', pts: [V(-9.5, E, 5.5), V(9.5, E, 5.5), V(4, E + RISE, 0), V(-4, E + RISE, 0)], types: ['eave', 'hip', 'ridge', 'hip'] },
   { id: 'B', name: 'Rear slope', rise: 6, pts: [V(9.5, E, -5.5), V(-9.5, E, -5.5), V(-4, E + RISE, 0), V(4, E + RISE, 0)], types: ['eave', 'hip', 'ridge', 'hip'] },
@@ -99,8 +99,10 @@ function preloadMap(h) {
 await preloadMap(window.HOME);
 function computeRoof() {
 H0 = window.HOME || {}; DEFAULT_HOUSE = false; E = storyEave(H0); SPEC = realSpecFor(H0); NONE = !!(SPEC && SPEC.none);
+// the measured roof (lib/real-roof.js facetSpec): walls stop at the lowest measured eave, each facet sits at its own height
+if (SPEC && SPEC.facet3d && SPEC.eaveFt > 0) E = SPEC.eaveFt / SCALE;
 HAIL = { size: H0.hail != null ? H0.hail.toFixed(2) + ' in' : 'No hail on file', date: H0.hailDate || ((window.RC && RC.facts.storm.d) || '') };
-PLANES = defaultPlanes(); CAPS = defaultCaps(); FP = null; SPEC_INFO = null;
+PLANES = defaultPlanes(); CAPS = defaultCaps(); FP = null; FPT = null; SPEC_INFO = null;
 if (NONE) { PLANES = []; CAPS = []; }
 else if (SPEC) {
   // square the house to its base: turn it by the small angle (under 45 deg) that lines its minimum-area bounding
@@ -114,13 +116,13 @@ else if (SPEC) {
   const typed = {}; SPEC.edges.forEach(e => { typed[[kk(e.a), kk(e.b)].sort().join('|')] = e.type; });
   const hits = SPEC.hit || [];
   PLANES = SPEC.planes.map(pl => ({
-    id: pl.id, name: pl.name, rise: pl.rise, hit: hits[0] === pl.id ? 'heavy' : hits.includes(pl.id) ? 'light' : undefined,
+    id: pl.id, name: pl.name, rise: pl.rise, areaFt: pl.areaFt || null, planFt: pl.areaFt ? pl.plan : null, hit: hits[0] === pl.id ? 'heavy' : hits.includes(pl.id) ? 'light' : undefined,
     pts: pl.pts.map(T),
     types: pl.types ? pl.types.slice() : pl.pts.map((a, i) => { const b = pl.pts[(i + 1) % pl.pts.length]; const t = typed[[kk(a), kk(b)].sort().join('|')]; if (t) return t; const za = a[2] || 0, zb = b[2] || 0; return za === 0 && zb === 0 ? 'eave' : Math.abs(za - zb) < .01 ? 'ridge' : 'hip'; })
   }));
   CAPS = SPEC.edges.filter(e => e.type === 'ridge' || e.type === 'hip').map(e => [T(e.a), T(e.b)]);
-  FP = SPEC.fp.map(p => T([p[0], p[1], 0]));
-  SPEC_INFO = { style: SPEC.mainStyle === 'gable' ? 'gable roof' : 'hip roof', real: !!SPEC.real };
+  FP = SPEC.fp.map(p => T([p[0], p[1], 0])); FPT = T;
+  SPEC_INFO = { style: SPEC.facet && SPEC.facetRec && window.RCROOF ? (RCROOF.shape(SPEC.facetRec) || 'hip roof') : SPEC.mainStyle === 'gable' ? 'gable roof' : 'hip roof', real: !!SPEC.real };
 }
 // an outline on file that does not look like this home: footprint not house-sized, or far off the county living area
 // (the same 0.4 to 2.0 band scripts/dfw/outline_fill.py accepts). Shown as "Fix outline", never silently used for a quote.
@@ -136,8 +138,9 @@ if (SPEC && SPEC.real && !SPEC.drawn) {
 M = { planes: [], edgeTotals: {}, area: 0, squares: 0 };
 const seen = new Set();
 PLANES.forEach(P => {
-  const plan = Math.round(planArea(P.pts) * SCALE * SCALE);
-  const area = Math.round(plan * factor(P.rise));
+  // a measured facet keeps its own measured plan and roof area (the report's numbers); its drawn ring is simplified
+  const plan = P.planFt || Math.round(planArea(P.pts) * SCALE * SCALE);
+  const area = P.areaFt || Math.round(plan * factor(P.rise));
   const edges = P.types.map((t, i) => { const a = P.pts[i], b = P.pts[(i + 1) % P.pts.length]; return { type: t, a, b, ft: Math.round(a.distanceTo(b) * SCALE) }; });
   edges.forEach(e => { // shared edges (ridge, hips, valleys) count once in the roof totals
     const k = [e.a, e.b].map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}`).sort().join('|');
@@ -151,7 +154,9 @@ if (SPEC && SPEC.real && SPEC.squares != null) M.squares = SPEC.squares; // real
 if (NONE) { M.pitch = ''; M.waste = 0; M.edgeTotals = {}; if (window.HOME) { window.HOME.measure = null; if (window.renderRecord) window.renderRecord(); } return; }
 { const by = {}; PLANES.forEach(P => by[P.rise] = (by[P.rise] || 0) + P.m.area); M.pitch = Object.entries(by).sort((a, b) => b[1] - a[1])[0][0] + '/12'; }
 { const ty = PLANES.flatMap(P => P.types); const cx = ty.filter(t => t === 'hip').length / 2 + ty.filter(t => t === 'valley').length; M.waste = cx === 0 ? 10 : cx <= 4 ? 12 : cx <= 8 ? 15 : 18; }
-if (window.HOME) { window.HOME.measure = { facet: !!(SPEC && SPEC.facet), squares: M.squares, waste: M.waste, pitch: M.pitch, drawn: !!(SPEC && SPEC.drawn), pitchMeasured: !!(SPEC && SPEC.pitchMeasured) }; if (window.renderRecord) window.renderRecord(); }
+if (SPEC && SPEC.waste != null) M.waste = SPEC.waste;   // the measured report's suggested waste: the same order figure the Roof report shows
+M.pitchText = SPEC && SPEC.facet && SPEC.pitchText ? SPEC.pitchText : M.pitch; M.facet = !!(SPEC && SPEC.facet);
+if (window.HOME) { window.HOME.measure = { facet: !!(SPEC && SPEC.facet), squares: M.squares, waste: M.waste, pitch: M.pitchText, shape: SPEC_INFO ? SPEC_INFO.style : '', planes: M.planes.length, drawn: !!(SPEC && SPEC.drawn), pitchMeasured: !!(SPEC && SPEC.pitchMeasured) }; if (window.renderRecord) window.renderRecord(); }
 }
 // angle of the footprint's minimum-area bounding rectangle, folded into [-45, 45] deg (convex hull, one try per hull edge)
 function squareAngle(pts) {
@@ -245,6 +250,13 @@ function buildSpecHouse() {
   const w = new THREE.Mesh(wg, wallMat); w.castShadow = true; w.receiveShadow = true; house.add(w);
   const tg = new THREE.ExtrudeGeometry(shp, { depth: .14, bevelEnabled: true, bevelSize: .15, bevelThickness: 0, bevelSegments: 1 }); tg.rotateX(-Math.PI / 2);
   const t = new THREE.Mesh(tg, trimMat); t.receiveShadow = true; house.add(t);
+  // the measured roof: a wall block under every facet that sits higher than the lowest eave, up to that facet's own eave
+  if (SPEC && SPEC.blocks && FPT) SPEC.blocks.forEach(b => {
+    const pts = b.ring.map(p => FPT([p[0], p[1], 0])); if (pts.length < 3) return;
+    const bs = new THREE.Shape(pts.map(p => new THREE.Vector2(p.x, -p.z)));
+    const bg = new THREE.ExtrudeGeometry(bs, { depth: b.top / SCALE + .02, bevelEnabled: false }); bg.rotateX(-Math.PI / 2); bg.translate(0, E - .01, 0);
+    const bm = new THREE.Mesh(bg, wallMat); bm.castShadow = true; bm.receiveShadow = true; house.add(bm);
+  });
   const gm = wallMat.clone(); gm.side = THREE.DoubleSide;
   PLANES.forEach(P => P.types.forEach((ty, i) => {
     if (ty !== 'rake') return; let a = P.pts[i], b = P.pts[(i + 1) % P.pts.length]; if (a.y > b.y) [a, b] = [b, a];
@@ -268,6 +280,7 @@ function buildSpecHouse() {
   // one row of windows per LiDAR story (STORIES, computeRoof); the door only on the ground floor
   walls.forEach(w => {
     for (let s = 0; s < STORIES; s++) for (let k = 0; k < w.cnt; k++) {
+      if (s * STORY_U + HEAD > E) continue;   // a window row only where the wall is that tall
       const p = w.a.clone().addScaledVector(w.along, END + w.usable * (k + .5) / w.cnt);
       const g = new THREE.Group(); g.position.set(p.x, s * STORY_U, p.z); g.rotation.y = Math.atan2(w.n.x, w.n.z); house.add(g);
       if (w.door === k && s === 0) doorAt(g); else windowAt(g);
@@ -334,10 +347,10 @@ PLANES.forEach((P, idx) => {
   const slab = new THREE.Mesh(sg, new THREE.MeshStandardMaterial({ color: '#1A2650', roughness: .7, metalness: .3 }));
   slab.castShadow = true; slab.receiveShadow = true; slab.userData.plane = idx; g.add(slab);
 
-  const minX = Math.min(...poly.map(q => q.x)), maxX = Math.max(...poly.map(q => q.x)), maxY = Math.max(...poly.map(q => q.y));
+  const minX = Math.min(...poly.map(q => q.x)), maxX = Math.max(...poly.map(q => q.x)), maxY = Math.max(...poly.map(q => q.y)), minY = Math.min(0, ...poly.map(q => q.y));   // a measured facet may reach below its first edge
   const W = .4, H = .26, gap = .035; const R = rand(7919 * (idx + 3));
   const mats = [], cols = [];
-  for (let r = 0, y = H / 2 + .03; y < maxY; r++, y += H) { const off = (r % 2) * W * .5; for (let x = minX - W + off; x < maxX + W; x += W) { const cx = x + W / 2; if (!pointInPoly({ x: cx, y }, poly)) continue; mats.push({ cx, cy: y, jitter: (R() - .5) }); cols.push(R()); } }
+  for (let r = 0, y = minY + H / 2 + .03; y < maxY; r++, y += H) { const off = (r % 2) * W * .5; for (let x = minX - W + off; x < maxX + W; x += W) { const cx = x + W / 2; if (!pointInPoly({ x: cx, y }, poly)) continue; mats.push({ cx, cy: y, jitter: (R() - .5) }); cols.push(R()); } }
   const mat = new THREE.MeshPhysicalMaterial({ color: '#ffffff', roughness: .34, metalness: .74, clearcoat: .3, clearcoatRoughness: .4, emissive: '#000000' });
   const inst = new THREE.InstancedMesh(plateGeo, mat, mats.length); inst.castShadow = true; inst.receiveShadow = true;
   const MM = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(); const qBasis = new THREE.Quaternion().setFromRotationMatrix(basis);
@@ -353,7 +366,7 @@ PLANES.forEach((P, idx) => {
     baseCols.push({ c, hit }); inst.setColorAt(i, c);
     if (hit) dents.push({ pos: pos.clone().addScaledVector(n, .08), r: .07 + RH() * .08 });
   });
-  inst.instanceColor.needsUpdate = true; inst.userData.plane = idx; g.add(inst);
+  if (inst.instanceColor) inst.instanceColor.needsUpdate = true; inst.userData.plane = idx; g.add(inst);
 
   let marks = null;
   if (dents.length) {
@@ -399,7 +412,7 @@ DIMS.forEach(d => {
 // ---------- labels ----------
 labelsEl.innerHTML = '';
 planeGroups.forEach((pg, i) => {
-  pg.pin = mk('pin' + (pg.P.hit ? ' hit' : ''), `<i>${pg.P.id}</i>~${pg.P.m.squares.toFixed(1)} sq <small>est. ${pg.P.rise}/12</small>`);
+  pg.pin = mk('pin' + (pg.P.hit ? ' hit' : ''), `<i>${pg.P.id}</i>${M.facet ? '' : '~'}${pg.P.m.squares.toFixed(1)} sq <small>${M.facet ? '' : 'est. '}${pg.P.rise}/12</small>`);
   pg.pin.onclick = () => focusPlane(i);
   pg.epins = pg.P.m.edges.map(e => mk('epin', `<i style="background:${EDGE_COL[e.type]}"></i><b>${e.ft} ft</b><span>${EDGE_LABEL[e.type]}</span>`));
   if (pg.P.hit) pg.hpin = mk('hpin' + (pg.P.hit === 'light' ? ' low' : ''), `<div class="k"><i>${pg.P.id}</i>${pg.P.name}</div><div class="big"><em>${HAIL.size}</em> hail, ${HAIL.date}</div><div class="s">${pg.hits} marks, ${pg.P.hit === 'heavy' ? 'faced the storm' : 'glancing side'}</div>`);
@@ -441,8 +454,8 @@ function build() {
   }
   activeIdx = -1; hoverIdx = -1; explodeTarget = 0; explodeT = 0; frames = 0; stage.classList.remove('focused');
   bExplode.classList.remove('on'); bExplode.textContent = 'Explode';
-  const pitchTxt = SPEC && SPEC.drawn ? (SPEC.pitchMeasured ? 'pitch est. ' + M.pitch : 'pitch estimated') : pitchGap() ? 'pitch est. (no LiDAR)' : 'pitch est. ' + M.pitch;
-  document.getElementById('titleH').title = window.RealRoof ? RealRoof.tip(SPEC) : 'Estimated from public building outlines and 2018 LiDAR. Verify on site.'; document.getElementById('titleH').textContent = NONE ? 'Outline not on file yet' : `~${M.squares} sq (est.), ${SPEC_INFO ? SPEC_INFO.style : 'hip roof'}, ${pitchTxt}`;
+  const pitchTxt = SPEC && SPEC.drawn ? (SPEC.pitchMeasured ? 'pitch est. ' + M.pitch : 'pitch estimated') : M.facet ? 'pitch ' + M.pitchText : pitchGap() ? 'pitch est. (no LiDAR)' : 'pitch est. ' + M.pitch;
+  document.getElementById('titleH').title = window.RealRoof ? RealRoof.tip(SPEC) : 'Estimated from public building outlines and 2018 LiDAR. Verify on site.'; document.getElementById('titleH').textContent = NONE ? 'Outline not on file yet' : `${M.facet ? M.squares + ' sq measured' : '~' + M.squares + ' sq (est.)'}, ${SPEC_INFO ? SPEC_INFO.style : 'hip roof'}, ${pitchTxt}`;
   document.getElementById('titleP').textContent = NONE ? 'The public building maps have no outline for this home yet, so there are no squares to show. This is the parcel from above.'
     : `${(SPEC && SPEC.label) || 'Roof drawn from the building outline'}${DEFAULT_HOUSE ? " (stop 1 on today's route)" : ''}. Drag to turn it, click a plane to measure it.`;
   showNone(); renderTag();
@@ -459,7 +472,7 @@ const INTRO_MS = Math.max(300, +(new URLSearchParams(location.search).get('build
 const easeOut = t => 1 - Math.pow(1 - Math.max(0, Math.min(1, t)), 3);
 function introOn() { return !!(window.RC_FEATURES && RC_FEATURES.roofBuild) && !REDUCE && !NONE && planeGroups.length > 0; }
 function builtInfo() {
-  return { none: NONE, facet: !!(SPEC && SPEC.facet), squares: M.squares, pitch: M.pitch, pitchMeasured: !!(SPEC && SPEC.pitchMeasured), pitchGap: pitchGap(), planes: PLANES.length,
+  return { none: NONE, facet: !!(SPEC && SPEC.facet), squares: M.squares, pitch: M.pitchText || M.pitch, pitchMeasured: !!(SPEC && SPEC.pitchMeasured), pitchGap: pitchGap(), planes: PLANES.length,
     hail: H0.hail != null ? +H0.hail : null, hailDate: HAIL.date, label: SPEC && SPEC.label || '', real: !!(SPEC && SPEC.real), drawn: !!(SPEC && SPEC.drawn), id: H0.rawId || '' };
 }
 function startIntro() {
@@ -595,8 +608,8 @@ function resetView() {
 }
 function planeHTML(pg) {
   const m = pg.P.m, P = pg.P;
-  return `<div class="fx${P.hit ? ' hit' : ''}"><div class="fh"><i>${P.id}</i><div><b>${P.name}</b><small>Pitch est. ${P.rise}/12, pitch factor ${m.factor.toFixed(3)}</small></div></div>
-    <div class="big" title="${window.RealRoof ? RealRoof.tip(SPEC) : 'Estimated from public building outlines and 2018 LiDAR. Verify on site.'}">~${m.squares.toFixed(1)}<i>squares (est.)</i></div>
+  return `<div class="fx${P.hit ? ' hit' : ''}"><div class="fh"><i>${P.id}</i><div><b>${P.name}</b><small>Pitch ${M.facet ? '' : 'est. '}${P.rise}/12, pitch factor ${m.factor.toFixed(3)}</small></div></div>
+    <div class="big" title="${window.RealRoof ? RealRoof.tip(SPEC) : 'Estimated from public building outlines and 2018 LiDAR. Verify on site.'}">${M.facet ? '' : '~'}${m.squares.toFixed(1)}<i>squares (${M.facet ? 'measured' : 'est.'})</i></div>
     <div class="line">${m.area.toLocaleString()} sq ft of roof from ${m.plan.toLocaleString()} sq ft of plan at ${P.rise}/12. ${Math.round(m.area / M.area * 100)}% of the roof.</div>
     <div class="edges">${m.edges.map(e => `<div><i style="background:${EDGE_COL[e.type]}"></i>${EDGE_LABEL[e.type]}<b>${e.ft} ft</b></div>`).join('')}</div>
     ${P.hit ? `<div class="hailline"><span class="ic">${I.hail}</span>${HAIL.size} hail ${HAIL.date}, ${pg.hits} marks${P.hit === 'heavy' ? ', faced the storm' : ', glancing side'}</div>` : ''}
@@ -608,8 +621,8 @@ function renderPanel() {
   measPill.textContent = A ? A.P.name : 'Whole roof';
   const first = !focusEl.innerHTML; focusEl.className = 'focus'; if (!first) { void focusEl.offsetWidth; focusEl.classList.add('in'); }
   if (NONE) { focusEl.innerHTML = `<div class="tot"><div><small>Roof</small><b style="font-size:16px">Outline not on file yet</b></div></div>`; tableEl.innerHTML = ''; return; }
-  focusEl.innerHTML = A ? planeHTML(A) : `<div class="tot"><div><small>Total</small><b title="${window.RealRoof ? RealRoof.tip(SPEC) : 'Estimated from public building outlines and 2018 LiDAR. Verify on site.'}">~${M.squares}<i>sq (est.)</i></b></div><div><small>Pitch est.</small><b>${pitchGap() ? 'No LiDAR' : M.pitch}</b></div><div><small>Planes</small><b>${M.planes.length}</b></div></div>`;
-  tableEl.innerHTML = `<thead><tr><th>Plane</th><th>Pitch est.</th><th>Area est.</th><th>Squares est.</th></tr></thead><tbody>${PLANES.map((P, i) => `<tr data-i="${i}" class="${A && A.P === P ? 'sel' : ''}"><td>${P.name}${P.hit === 'heavy' ? '<span class="tag">hail</span>' : ''}</td><td>${P.rise}/12</td><td>${P.m.area.toLocaleString()} sq ft</td><td><b>${P.m.squares.toFixed(1)}</b></td></tr>`).join('')}</tbody><tfoot><tr><td>Total</td><td>${M.pitch}</td><td>${M.area.toLocaleString()} sq ft</td><td>~${M.squares}</td></tr></tfoot>`;
+  focusEl.innerHTML = A ? planeHTML(A) : `<div class="tot"><div><small>Total</small><b title="${window.RealRoof ? RealRoof.tip(SPEC) : 'Estimated from public building outlines and 2018 LiDAR. Verify on site.'}">${M.facet ? M.squares + '<i>sq measured</i>' : '~' + M.squares + '<i>sq (est.)</i>'}</b></div><div><small>${M.facet ? 'Pitch' : 'Pitch est.'}</small><b>${pitchGap() ? 'No LiDAR' : M.pitchText || M.pitch}</b></div><div><small>${M.facet ? 'Facets' : 'Planes'}</small><b>${M.planes.length}</b></div></div>`;
+  tableEl.innerHTML = `<thead><tr><th>Plane</th><th>${M.facet ? 'Pitch' : 'Pitch est.'}</th><th>${M.facet ? 'Area' : 'Area est.'}</th><th>${M.facet ? 'Squares' : 'Squares est.'}</th></tr></thead><tbody>${PLANES.map((P, i) => `<tr data-i="${i}" class="${A && A.P === P ? 'sel' : ''}"><td>${P.name}${P.hit === 'heavy' ? '<span class="tag">hail</span>' : ''}</td><td>${P.rise}/12</td><td>${P.m.area.toLocaleString()} sq ft</td><td><b>${P.m.squares.toFixed(1)}</b></td></tr>`).join('')}</tbody><tfoot><tr><td>Total</td><td>${M.pitchText || M.pitch}</td><td>${M.area.toLocaleString()} sq ft</td><td>${M.facet ? '' : '~'}${M.squares}</td></tr></tfoot>`;
   tableEl.querySelectorAll('tbody tr').forEach(tr => { tr.onclick = () => { const i = +tr.dataset.i; i === activeIdx ? resetView() : focusPlane(i); }; tr.onmouseenter = () => { hoverIdx = +tr.dataset.i; }; tr.onmouseleave = () => { hoverIdx = -1; }; });
   focusEl.querySelectorAll('[data-whole]').forEach(b => b.onclick = resetView);
   if (isPhone) {
@@ -682,7 +695,7 @@ function frame(now) {
         const l = b.c.getHSL({}).l; tmpC.copy(b.hit ? RED_HIT : RED).offsetHSL(0, 0, (l - .34) * .45);
         col.copy(b.c).lerp(tmpC, red); col.offsetHSL(0, 0, pg.hover * .11 + pg.act * .06); pg.inst.setColorAt(k, col);
       });
-      pg.inst.instanceColor.needsUpdate = true;
+      if (pg.inst.instanceColor) pg.inst.instanceColor.needsUpdate = true;
       pg.mat.metalness = .74 - .40 * red; pg.mat.roughness = .34 + .14 * red; pg.mat.envMapIntensity = 1 - .7 * red; pg.mat.emissive.setRGB(.025 * red, 0, 0);
       pg.slab.material.color.copy(SLAB_BASE).lerp(SLAB_RED, red);
       pg.trim.color.copy(TRIM_BASE).lerp(TRIM_ACTIVE, Math.max(pg.act, pg.hover * .55));

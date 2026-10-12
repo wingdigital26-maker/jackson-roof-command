@@ -343,9 +343,9 @@
       const sq = M ? M.squares : rec.sq, waste = M ? M.waste : 15, order = sq ? Math.round(sq * (1 + waste / 100) * 10) / 10 : null;
       pb.innerHTML = `<div class="ph"><h3>Proposal</h3><span class="pill">Sent, sample</span></div>
         <div class="kv pk"><div><span>Scope</span><b>Full replacement, architectural shingle</b></div>
-        <div><span>${M && M.drawn ? 'Drawn by you' : 'Estimated'}</span><b title="${window.RealRoof ? RealRoof.tip(M) : 'Estimated from public building outlines and 2018 LiDAR. Verify on site.'}">${sq != null ? '~' + sq + ' sq (est.)' + (M && M.drawn && !M.pitchMeasured ? ', pitch estimated' : '') : 'Not estimated'}</b></div>
+        <div><span>${M && M.drawn ? 'Drawn by you' : M && M.facet ? 'Measured' : 'Estimated'}</span><b title="${window.RealRoof ? RealRoof.tip(M) : 'Estimated from public building outlines and 2018 LiDAR. Verify on site.'}">${sq != null ? (M && M.facet ? sq + ' sq, LiDAR roof facets, pitch ' + esc(M.pitch) : '~' + sq + ' sq (est.)') + (M && M.drawn && !M.pitchMeasured ? ', pitch estimated' : '') : 'Not estimated'}</b></div>
         <div><span>Waste</span><b>${waste}%, from the hips and valleys</b></div>
-        <div><span>Order</span><b>${order != null ? '~' + order + ' sq (est.)' : 'After the site check'}</b></div>
+        <div><span>Order</span><b>${order != null ? (M && M.facet ? order + ' sq, verify on site' : '~' + order + ' sq (est.)') : 'After the site check'}</b></div>
         <div><span>Insurance</span><b>Adjuster meeting if the owner files</b></div></div>
         <p class="note">Quantities come from the drawing. Price, claim amounts and deductibles are set with the homeowner, never promised here.</p>`;
     }
@@ -398,7 +398,7 @@
     if (!reportEl || !window.RCROOF) return;
     const me = rawId, M = measures(), est = M ? { squares: M.squares, pitch: M.pitch, planes: M.planes ? M.planes.length : 0 } : {};
     const paint = d => { if (me !== rawId) return; const h = RCROOF.reportHTML(rec.roof, d, est); if (reportEl.__h !== h) { reportEl.innerHTML = h; reportEl.__h = h; } };
-    if (!rec.roof || !rec.roof.facets) return paint(null);
+    if (!rec.roof || (!rec.roof.facets && !rec.roof.est)) return paint(null);
     RCROOF.detail(rec.gi).then(paint, () => paint(null));
   }
   function renderAll() { renderHead(); renderSub(); renderSteps(); renderNext(); renderActivity(); renderReport(); if (window.renderPipe) window.renderPipe(); if (window.renderCRM) window.renderCRM(); }

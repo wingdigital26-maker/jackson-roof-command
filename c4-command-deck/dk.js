@@ -84,7 +84,10 @@
     const waste = complexity === 0 ? 10 : complexity <= 4 ? 12 : complexity <= 8 ? 15 : 18;
     const byPitch = {}; planes.forEach(p => byPitch[p.rise] = (byPitch[p.rise] || 0) + p.area);
     const predominant = Object.entries(byPitch).sort((a, b) => b[1] - a[1])[0][0];
-    if (spec.real) return { planes, area, squares: spec.squares != null ? spec.squares : squares, edges, waste, predominant: predominant + '/12', facets: planes.length, order: Math.round(squares * (1 + waste / 100) * 10) / 10, real: true, label: spec.label };
+    // a real home: its squares (measured facets or the outline estimate) drive the order, never the drawn planes' own sum;
+    // a measured home keeps the report's waste and its full pitch line ("12/12 + 7/12")
+    if (spec.real) { const sq = spec.squares != null ? spec.squares : squares, w = spec.waste != null ? spec.waste : waste;
+      return { planes, area, squares: sq, edges, waste: w, predominant: spec.facet && spec.pitchText ? spec.pitchText : predominant + '/12', facets: planes.length, order: Math.round(sq * (1 + w / 100) * 10) / 10, real: true, label: spec.label, measured: !!spec.facet }; }
     return { planes, area, squares, edges, waste, predominant: predominant + '/12', facets: planes.length, order: Math.round(squares * (1 + waste / 100) * 10) / 10 };
   }
 
@@ -219,7 +222,7 @@
       const o = w.phHTML;
       w.phHTML = function (h) {
         const html = o.apply(this, arguments); if (!h || !h.spec) return html;
-        const txt = h.spec.loading ? 'Loading the outline' : h.spec.none ? 'No outline on file' : `~${h.sq} sq (est.)<i>${h.M && h.M.facets ? h.M.facets + ' planes, ' : ''}red took the hail</i>`;
+        const txt = h.spec.loading ? 'Loading the outline' : h.spec.none ? 'No outline on file' : h.spec.facet ? `${h.sq} sq measured<i>${h.M && h.M.facets ? h.M.facets + ' facets, ' : ''}red took the hail</i>` : `~${h.sq} sq (est.)<i>${h.M && h.M.facets ? h.M.facets + ' planes, ' : ''}red took the hail</i>`;
         // the LiDAR story count (lib/rc-roof.js) rides in the card's top-right pill row; looked up once per home, the card repaints when it lands
         let chip = '';
         if (window.RCROOF && h.gi != null) {

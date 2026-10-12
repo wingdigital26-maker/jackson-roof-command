@@ -38,6 +38,8 @@
   // ---------- the roof-build stamp: the finished roof labels itself with its estimated numbers ----------
   function stampHTML(d) {
     const hail = d.hail != null ? `<div class="rc-sh"><i style="--d:${Math.max(10, Math.min(34, Math.round(d.hail * 16)))}px"></i><b>${d.hail.toFixed(2)} in</b><small>hail, ${esc(d.hailDate)}, radar</small></div>` : `<div class="rc-sh"><b class="sm">No hail on file</b><small>for this address</small></div>`;
+    // a measured home (LiDAR roof facets) says measured and shows both pitches; an outline estimate keeps est.
+    if (d.facet) return `${hail}<div class="rc-sm" title="Measured from LiDAR roof facets. Verify on site."><div><b>${esc(String(d.squares))}</b><small>sq measured</small></div><div><b>${esc(d.pitch)}</b><small>pitch, LiDAR</small></div><div><b>${d.planes}</b><small>facets</small></div></div>`;
     const pitch = d.pitchGap ? `<b>No LiDAR</b><small>pitch est.</small>` : `<b>${esc(d.pitch)}</b><small>pitch est.${d.pitchMeasured ? ', LiDAR' : ''}</small>`;
     return `${hail}<div class="rc-sm" title="Estimated from public building outlines and 2018 LiDAR. Verify on site."><div><b>~${esc(String(d.squares))}</b><small>sq (est.)</small></div><div>${pitch}</div><div><b>${d.planes}</b><small>planes</small></div></div>`;
   }
